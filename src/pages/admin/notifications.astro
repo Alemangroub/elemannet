@@ -1,0 +1,266 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="تنبيهات الأقساط">
+    <main>
+        <div class="notifications-container">
+            <div class="header">
+                <h1>تنبيهات الأقساط</h1>
+                <a href="/admin/installments" class="btn btn-secondary">&larr; العودة إلى العقود</a>
+            </div>
+
+            <div id="loader" class="loader-container">
+                <div class="loader"></div>
+                <p>جاري تحليل الأقساط...</p>
+            </div>
+
+            <div id="notifications-content" style="display: none;">
+                <!-- Overdue Installments -->
+                <div class="notification-category card overdue">
+                    <h2>أقساط مستحقة (فات موعدها)</h2>
+                    <div id="overdue-list" class="notification-list"></div>
+                    <div id="no-overdue" class="no-data-message" style="display: none;">لا توجد أقساط مستحقة حاليًا.</div>
+                </div>
+
+                <!-- Due Soon Installments -->
+                <div class="notification-category card due-soon">
+                    <h2>أقساط تستحق قريبًا (خلال 7 أيام)</h2>
+                    <div id="due-soon-list" class="notification-list"></div>
+                    <div id="no-due-soon" class="no-data-message" style="display: none;">لا توجد أقساط تستحق خلال الأيام السبعة القادمة.</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<style is:global>
+    main {
+        padding: 2rem;
+        background-color: #f7f9fc;
+        direction: rtl;
+        font-family: 'Cairo', sans-serif;
+    }
+    .notifications-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    h1 {
+        font-size: 2rem;
+        color: #2c3e50;
+        margin: 0;
+    }
+    .btn-secondary {
+        background-color: #ecf0f1;
+        color: #34495e;
+        border: 1px solid #bdc3c7;
+        padding: 0.7rem 1.4rem;
+        border-radius: 8px;
+        text-decoration: none;
+        transition: background-color 0.2s ease;
+    }
+    .btn-secondary:hover {
+        background-color: #e0e5e8;
+    }
+    .card {
+        background: #fff;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+    }
+    .notification-category h2 {
+        font-size: 1.5rem;
+        padding: 1rem 1.5rem;
+        margin: 0;
+        color: white;
+    }
+    .notification-list {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .no-data-message {
+        padding: 2rem;
+        text-align: center;
+        color: #7f8c8d;
+    }
+    .overdue h2 {
+        background-color: #e74c3c;
+    }
+    .due-soon h2 {
+        background-color: #000000; /* Changed to black */
+    }
+
+    /* --- ITEM & BUTTON REWRITE --- */
+    .notification-item {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        padding: 1rem !important;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    .notification-item:last-child {
+        border-bottom: none;
+    }
+
+    .item-info {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.2rem !important;
+        text-align: right; /* Ensure text is right-aligned */
+    }
+
+    .item-info .customer-name {
+        font-weight: 700 !important;
+        font-size: 1.1rem !important;
+        color: #34495e !important;
+    }
+
+    .item-info .due-date,
+    .item-info .amount {
+        font-size: 0.95rem !important;
+        color: #7f8c8d !important;
+    }
+
+    .item-actions {
+        flex-shrink: 0 !important;
+    }
+
+    .btn-primary {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0.5rem !important;
+        padding: 0.7rem 1.3rem !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
+        color: white !important;
+        background-color: #3B82F6 !important; /* Solid Professional Blue */
+        border: none !important;
+        border-radius: 8px !important;
+        text-decoration: none !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        transition: all 0.2s ease-in-out !important;
+        cursor: pointer !important;
+        white-space: nowrap !important;
+    }
+
+    .btn-primary:hover {
+        background-color: #2563EB !important;
+        box-shadow: 0 5px 12px rgba(59, 130, 246, 0.3) !important;
+        transform: translateY(-2px) !important;
+    }
+
+    .btn-primary svg {
+        width: 16px !important;
+        height: 16px !important;
+        stroke: white !important;
+        stroke-width: 2.5 !important;
+    }
+    
+    .loader-container {
+        text-align: center;
+        padding: 4rem;
+    }
+    .loader {
+        margin: 0 auto 1rem auto;
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+    import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+    import { app } from '../../firebase';
+
+    const db = getFirestore(app);
+    const loader = document.getElementById('loader');
+    const notificationsContent = document.getElementById('notifications-content');
+    const overdueList = document.getElementById('overdue-list');
+    const noOverdue = document.getElementById('no-overdue');
+    const dueSoonList = document.getElementById('due-soon-list');
+    const noDueSoon = document.getElementById('no-due-soon');
+
+    const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
+
+    async function fetchNotifications() {
+        try {
+            const contractsSnapshot = await getDocs(collection(db, 'contracts'));
+            const contractMap = new Map();
+            contractsSnapshot.forEach(doc => {
+                contractMap.set(doc.id, doc.data().customerName);
+            });
+
+            const q = query(collection(db, 'installments'), where('status', '==', 'unpaid'));
+            const installmentsSnapshot = await getDocs(q);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const sevenDaysFromNow = new Date(today);
+            sevenDaysFromNow.setDate(today.getDate() + 7);
+
+            let overdueCount = 0;
+            let dueSoonCount = 0;
+
+            installmentsSnapshot.forEach(doc => {
+                const installment = doc.data();
+                const dueDate = new Date(installment.dueDate);
+                const customerName = contractMap.get(installment.contractId) || 'عميل غير معروف';
+
+                const itemHTML = `
+                    <div class="notification-item">
+                        <div class="item-info">
+                            <span class="customer-name">${customerName}</span>
+                            <span class="amount">المبلغ: ${formatCurrency(installment.amount)}</span>
+                            <span class="due-date">تاريخ الاستحقاق: ${installment.dueDate}</span>
+                        </div>
+                        <div class="item-actions">
+                            <a href="/admin/contract-details?id=${installment.contractId}" class="btn btn-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                <span>عرض العقد</span>
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                if (dueDate < today) {
+                    overdueList.innerHTML += itemHTML;
+                    overdueCount++;
+                } else if (dueDate <= sevenDaysFromNow) {
+                    dueSoonList.innerHTML += itemHTML;
+                    dueSoonCount++;
+                }
+            });
+
+            if (overdueCount === 0) noOverdue.style.display = 'block';
+            if (dueSoonCount === 0) noDueSoon.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error fetching notifications: ", error);
+            overdueList.innerHTML = `<p style="color: red;">حدث خطأ أثناء تحميل التنبيهات.</p>`;
+        } finally {
+            loader.style.display = 'none';
+            notificationsContent.style.display = 'block';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', fetchNotifications);
+</script>

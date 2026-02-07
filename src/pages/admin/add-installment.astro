@@ -1,0 +1,289 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="إضافة عقد جديد">
+    <main>
+        <div class="form-container">
+            <h1>إضافة عقد جديد</h1>
+            <form id="add-installment-form">
+                <div class="input-group">
+                    <label for="unitType">نوع الوحدة</label>
+                    <select id="unitType" required>
+                        <option value="" disabled selected>اختر نوع الوحدة</option>
+                        <option value="شقة">شقة</option>
+                        <option value="محل">محل</option>
+                        <option value="بدروم">بدروم</option>
+                        <option value="other">أخرى</option>
+                    </select>
+                </div>
+                <div class="input-group" id="other-unit-type-group" style="display: none;">
+                    <label for="otherUnitType">يرجى تحديد النوع</label>
+                    <input type="text" id="otherUnitType" />
+                </div>
+                <div class="input-group">
+                    <label for="unitLocation">موقع الوحدة</label>
+                    <input type="text" id="unitLocation" required />
+                </div>
+                <div class="input-group">
+                    <label for="customerName">اسم العميل</label>
+                    <input type="text" id="customerName" required />
+                </div>
+                <div class="input-group">
+                    <label for="customerPhone">رقم موبايل العميل</label>
+                    <input type="tel" id="customerPhone" required />
+                </div>
+                <div class="input-group">
+                    <label for="totalAmount">المبلغ الإجمالي</label>
+                    <input type="number" id="totalAmount" required />
+                </div>
+                <div class="input-group">
+                    <label for="installmentsCount">عدد الأقساط</label>
+                    <select id="installmentsCount" required>
+                        <option value="" disabled selected>اختر عدد الأقساط</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9</option>
+                        <option value="10">10</option>
+                    </select>
+                </div>
+
+                <!-- Container for dynamically generated installment fields -->
+                <div id="installments-container"></div>
+
+                <div class="form-actions">
+                     <button type="submit" class="btn">حفظ العقد</button>
+                     <a href="/admin/installments" class="btn btn-secondary">إلغاء</a>
+                </div>
+            </form>
+        </div>
+    </main>
+</Layout>
+
+<style>
+    main {
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        background-color: #f4f7f6;
+        font-family: 'Cairo', sans-serif;
+        direction: rtl;
+    }
+
+    .form-container {
+        width: 100%;
+        max-width: 600px;
+        background: #fff;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        margin-top: 2rem;
+    }
+
+    h1 {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: #333;
+    }
+
+    .input-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .installment-entry {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        background-color: #fafafa;
+    }
+
+    .installment-header {
+        font-weight: bold;
+        margin-bottom: 1rem;
+        color: #3f51b5;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #555;
+    }
+
+    input, select {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-family: inherit;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 0.9rem;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        text-align: center;
+    }
+
+    .btn[type="submit"] {
+        background-color: #3f51b5;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+    }
+</style>
+
+<script>
+    import { getAuth, onAuthStateChanged } from 'firebase/auth';
+    import { getFirestore, collection, doc, writeBatch } from 'firebase/firestore';
+    import { app } from '../../firebase';
+
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    onAuthStateChanged(auth, (user) => {
+        if (!user) { window.location.href = '/admin'; }
+    });
+    
+    const unitTypeSelect = document.getElementById('unitType');
+    const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
+    const otherUnitTypeInput = document.getElementById('otherUnitType');
+
+    unitTypeSelect.addEventListener('change', () => {
+        if (unitTypeSelect.value === 'other') {
+            otherUnitTypeGroup.style.display = 'block';
+            otherUnitTypeInput.required = true;
+        } else {
+            otherUnitTypeGroup.style.display = 'none';
+            otherUnitTypeInput.required = false;
+        }
+    });
+
+    const installmentsCountSelect = document.getElementById('installmentsCount');
+    const totalAmountInput = document.getElementById('totalAmount');
+    const installmentsContainer = document.getElementById('installments-container');
+
+    function generateInstallmentFields() {
+        const count = parseInt(installmentsCountSelect.value) || 0;
+        const totalAmount = parseFloat(totalAmountInput.value) || 0;
+        
+        installmentsContainer.innerHTML = '';
+
+        if (count > 0) {
+            const installmentAmount = (totalAmount / count).toFixed(2);
+
+            for (let i = 1; i <= count; i++) {
+                const entry = document.createElement('div');
+                entry.className = 'installment-entry';
+
+                const dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 1);
+                dueDate.setMonth(dueDate.getMonth() + (i - 1));
+                const formattedDueDate = dueDate.toISOString().split('T')[0];
+                
+                entry.innerHTML = `
+                    <div class="installment-header">القسط رقم ${i}</div>
+                    <div class="input-group">
+                        <label for="installment-amount-${i}">مبلغ القسط</label>
+                        <input type="number" step="0.01" id="installment-amount-${i}" value="${installmentAmount > 0 ? installmentAmount : '0.00'}" required />
+                    </div>
+                    <div class="input-group">
+                        <label for="installment-due-date-${i}">تاريخ الاستحقاق</label>
+                        <input type="date" id="installment-due-date-${i}" value="${formattedDueDate}" required />
+                    </div>
+                    <div class="input-group">
+                        <label for="installment-status-${i}">الحالة</label>
+                        <select id="installment-status-${i}" required>
+                            <option value="unpaid" selected>مستحق</option>
+                            <option value="paid">مدفوع</option>
+                        </select>
+                    </div>
+                `;
+                installmentsContainer.appendChild(entry);
+            }
+        }
+    }
+
+    installmentsCountSelect.addEventListener('change', generateInstallmentFields);
+    totalAmountInput.addEventListener('input', generateInstallmentFields);
+
+    const form = document.getElementById('add-installment-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+        submitButton.textContent = 'جاري الحفظ...';
+
+        try {
+            const unitType = document.getElementById('unitType').value === 'other'
+                ? document.getElementById('otherUnitType').value
+                : document.getElementById('unitType').value;
+
+            const contractData = {
+                unitType: unitType,
+                unitLocation: document.getElementById('unitLocation').value,
+                customerName: document.getElementById('customerName').value,
+                customerPhone: document.getElementById('customerPhone').value,
+                totalAmount: parseFloat(totalAmountInput.value),
+                installmentsCount: parseInt(installmentsCountSelect.value),
+                createdAt: new Date(),
+            };
+
+            const installments = [];
+            let calculatedTotal = 0;
+            for (let i = 1; i <= contractData.installmentsCount; i++) {
+                const amount = parseFloat(document.getElementById(`installment-amount-${i}`).value);
+                const dueDate = document.getElementById(`installment-due-date-${i}`).value;
+                const status = document.getElementById(`installment-status-${i}`).value;
+                installments.push({ amount, dueDate, status });
+                calculatedTotal += amount;
+            }
+
+            if (Math.abs(contractData.totalAmount - calculatedTotal) > 0.01) {
+                throw new Error(`مجموع الأقساط لا يساوي المبلغ الإجمالي`);
+            }
+
+            const batch = writeBatch(db);
+            const contractRef = doc(collection(db, "contracts"));
+            batch.set(contractRef, contractData);
+
+            installments.forEach(inst => {
+                const installmentRef = doc(collection(db, "installments"));
+                batch.set(installmentRef, { ...inst, contractId: contractRef.id, customerName: contractData.customerName, unitLocation: contractData.unitLocation });
+            });
+
+            await batch.commit();
+            alert('تم حفظ العقد والأقساط بنجاح!');
+            window.location.href = '/admin/installments'; // <-- Fixed redirect link!
+
+        } catch (error) {
+            console.error("Error adding document: ", error);
+            alert(`حدث خطأ أثناء الحفظ: ${error.message}`);
+            submitButton.disabled = false;
+            submitButton.textContent = 'حفظ العقد';
+        }
+    });
+</script>

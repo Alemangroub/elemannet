@@ -1,0 +1,297 @@
+---
+import Layout from '../layouts/Layout.astro';
+--- 
+
+<Layout title="لوحة التحكم">
+  <main id="auth-container">
+
+    <!-- Login View -->
+    <div id="login-view" class="view">
+      <div class="form-container">
+        <h2>تسجيل دخول المسؤول</h2>
+        <form id="login-form">
+          <div class="input-group">
+            <label for="email">البريد الإلكتروني</label>
+            <input type="email" id="email" required />
+          </div>
+          <div class="input-group">
+            <label for="password">كلمة المرور</label>
+            <input type="password" id="password" required />
+          </div>
+          <button type="submit" class="btn">تسجيل الدخول</button>
+          <p id="error-message" class="error-text"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="view" style="display: none;">
+        <div id="dashboard-content">
+            <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
+            <div class="dashboard-header">
+                <h1>مرحباً بك في لوحة التحكم</h1>
+                <p>من هنا يمكنك إدارة محتوى الموقع بسهولة وأمان.</p>
+            </div>
+            <div class="dashboard-actions">
+                <a href="/admin/installments" class="action-card">
+                    <h3>إدارة الأقساط</h3>
+                    <p>عرض، تعديل، وإضافة الأقساط والعقود.</p>
+                </a>
+                <a href="/admin/projects" class="action-card">
+                    <h3>ادارة المشروعات</h3>
+                    <p>إضافة وتعديل وحذف المشاريع الخاصة بالشركة.</p>
+                </a>
+            </div>
+        </div>
+    </div>
+
+  </main>
+</Layout>
+
+<style>
+  :root {
+    --primary-color: #3f51b5;
+    --primary-dark: #303f9f;
+    --logout-color: #d32f2f;
+    --background-color: #f4f7f6;
+    --text-color: #333;
+    --card-bg: #ffffff;
+    --shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    --border-radius: 12px;
+  }
+
+  main#auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: var(--background-color);
+    font-family: 'Cairo', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: rtl;
+  }
+
+  .view {
+      width: 100%;
+  }
+
+  .form-container {
+    background: var(--card-bg);
+    padding: 2.5rem 3rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    transition: all 0.3s ease;
+    margin: 0 auto;
+  }
+
+  h2 {
+    color: var(--text-color);
+    margin-bottom: 1.5rem;
+  }
+
+  .input-group {
+    margin-bottom: 1.5rem;
+    text-align: right;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 600;
+  }
+
+  input[type="email"], input[type="password"] {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    direction: ltr;
+    text-align: left;
+  }
+
+  input[type="email"]:focus, input[type="password"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2);
+  }
+
+  .btn {
+    width: 100%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    background-color: var(--primary-color);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    box-shadow: 0 4px 20px rgba(63, 81, 181, 0.35);
+    margin-top: 1rem;
+  }
+
+  .btn:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+  }
+  
+  .btn.is-loading {
+    cursor: not-allowed;
+    background-color: #7986cb; /* Lighter shade of primary */
+  }
+
+  .btn-logout {
+      position: absolute;
+      top: 1.5rem;
+      left: 1.5rem;
+      width: auto;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      background-color: var(--logout-color);
+      box-shadow: 0 2px 10px rgba(211, 47, 47, 0.35);
+      margin-top: 0;
+      z-index: 1000;
+  }
+  
+  .btn-logout:hover {
+      background-color: #c62828;
+      transform: translateY(-1px);
+  }
+
+  .error-text {
+    color: #e53935;
+    margin-top: 1rem;
+    min-height: 1.2em;
+  }
+  
+  /* Dashboard Styles */
+  #dashboard-content {
+      position: relative; /* Set position to relative */
+      padding: 5rem 2rem 2rem; /* Add padding-top to create space */
+      max-width: 1200px;
+      margin: 0 auto;
+  }
+
+  .dashboard-header {
+      text-align: center;
+      margin-bottom: 3rem;
+  }
+
+  .dashboard-header h1 {
+      font-size: 2.5rem;
+      color: var(--text-color);
+  }
+
+  .dashboard-header p {
+      font-size: 1.1rem;
+      color: #555;
+  }
+
+  .dashboard-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+  }
+
+  .action-card {
+      background-color: var(--card-bg);
+      padding: 2rem;
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      color: var(--text-color);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .action-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+  }
+
+  .action-card h3 {
+      font-size: 1.5rem;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+  }
+
+  .action-card p {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #666;
+  }
+</style>
+
+<script>
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+  import { app } from "../firebase";
+
+  const auth = getAuth(app);
+
+  const loginView = document.getElementById('login-view');
+  const dashboardView = document.getElementById('dashboard-view');
+  const loginForm = document.getElementById("login-form");
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  const errorMessage = document.getElementById("error-message");
+  const logoutButton = document.getElementById("logout-button");
+
+  // Guard against elements not being found
+  if (loginForm && emailInput && passwordInput && errorMessage && logoutButton) {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // User is signed in.
+        loginView.style.display = 'none';
+        dashboardView.style.display = 'block';
+      } else {
+        // User is signed out.
+        loginView.style.display = 'block';
+        dashboardView.style.display = 'none';
+      } 
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errorMessage.textContent = '';
+      const loginButton = loginForm.querySelector('button[type="submit"]');
+      
+      // Disable button and show loading state
+      loginButton.disabled = true;
+      loginButton.classList.add('is-loading');
+      loginButton.textContent = 'جاري تسجيل الدخول...';
+
+      const email = emailInput.value;
+      const password = passwordInput.value;
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        // onAuthStateChanged will handle switching the view
+      } catch (error) {
+        errorMessage.textContent = "البريد الإلكتروني أو كلمة المرور غير صالحة. يرجى المحاولة مرة أخرى.";
+        console.error("Login Error:", error);
+      } finally {
+        // Re-enable the button only if there was an error
+        if (!auth.currentUser) {
+            loginButton.disabled = false;
+            loginButton.classList.remove('is-loading');
+            loginButton.textContent = 'تسجيل الدخول';
+        }
+      }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      try {
+        await signOut(auth);
+        // onAuthStateChanged will handle switching the view back to login
+      } catch (error) {
+          console.error("Logout Error:", error);
+          alert("فشل تسجيل الخروج. يرجى المحاولة مرة أخرى.");
+      } 
+    });
+  }
+</script>

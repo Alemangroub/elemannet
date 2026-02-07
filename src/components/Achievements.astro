@@ -1,0 +1,265 @@
+---
+import achievements from '../data/achievements.json';
+---
+
+<section id="achievements" class="achievements">
+    <div class="achievements-overlay"></div>
+    <div class="container">
+        <div class="section-header">
+            <h2 class="section-title">إنجازاتنا في أرقام</h2>
+            <p class="section-subtitle">نفخر بما حققناه، والأرقام هي خير دليل على التزامنا بالتميز والجودة.</p>
+        </div>
+        <div class="achievements-grid">
+            {achievements.map((item, index) => (
+                <div class="achievement-item" data-index={index}>
+                    <div class="achievement-circle">
+                        <span class="achievement-value" data-value={item.value.replace('+', '')}>0</span>
+                    </div>
+                    <h3 class="achievement-title">{item.title}</h3>
+                    <p class="achievement-description">{item.description}</p>
+                </div>
+            ))}
+        </div>
+    </div>
+</section>
+
+<script is:inline>
+    document.addEventListener('DOMContentLoaded', () => {
+        function animateValue(element, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const current = Math.floor(progress * (end - start) + start);
+                element.textContent = `+${current}`;
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        if (!('IntersectionObserver' in window)) {
+            const items = document.querySelectorAll('.achievement-item');
+            items.forEach(item => {
+                item.classList.add('is-visible');
+                const valueEl = item.querySelector('.achievement-value');
+                const finalValue = parseInt(valueEl.getAttribute('data-value'), 10);
+                valueEl.textContent = `+${finalValue}`;
+            });
+            return;
+        }
+
+        const items = document.querySelectorAll('.achievement-item');
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const item = entry.target;
+                    const valueEl = item.querySelector('.achievement-value');
+                    const finalValue = parseInt(valueEl.getAttribute('data-value'), 10);
+                    animateValue(valueEl, 0, finalValue, 2000);
+                    item.classList.add('is-visible');
+                    observer.unobserve(item);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        items.forEach(item => {
+            observer.observe(item);
+        });
+    });
+</script>
+
+<style>
+    .achievements {
+        position: relative;
+        padding: 100px 0;
+        direction: rtl;
+        background-image: url('/vector-achievement-background-hand-holding-trophy-icon-eps-ai.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }
+
+    .achievements-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(46, 58, 70, 0.85);
+        z-index: 1;
+    }
+
+    .container {
+        position: relative;
+        z-index: 2;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 20px;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 80px;
+    }
+
+    .section-title {
+        font-family: 'Cairo', sans-serif;
+        font-size: 3rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 10px;
+    }
+
+    .section-subtitle {
+        font-family: 'Almarai', sans-serif;
+        font-size: 1.3rem;
+        color: #e0e0e0;
+        max-width: 650px;
+        margin: 0 auto;
+        line-height: 1.6;
+        opacity: 0.9;
+    }
+
+    .achievements-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 60px 40px;
+        justify-content: center;
+        align-items: start;
+    }
+
+    .achievement-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        opacity: 0;
+        transform: translateY(30px);
+        visibility: hidden;
+        transition: opacity 0.7s ease-out, transform 0.7s ease-out, visibility 0.7s;
+    }
+
+    .achievement-item.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+    }
+
+    .achievement-circle {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.05);
+        border: 6px solid #ffffff;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+        transition: transform 0.4s ease, background-color 0.4s ease;
+    }
+
+    .achievement-item:hover .achievement-circle {
+        transform: translateY(-8px) scale(1.05);
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .achievement-value {
+        font-family: 'Cairo', sans-serif;
+        font-size: 4.5rem;
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1;
+    }
+
+    .achievement-title {
+        font-family: 'Almarai', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 10px;
+    }
+
+    .achievement-description {
+        font-family: 'Almarai', sans-serif;
+        font-size: 1rem;
+        color: #e0e0e0;
+        line-height: 1.6;
+        max-width: 240px;
+        opacity: 0.9;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 992px) {
+        .achievements {
+            padding: 80px 0;
+        }
+        .section-header {
+            margin-bottom: 70px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .achievements {
+            background-attachment: scroll; /* Disable parallax for performance */
+            padding: 60px 0;
+        }
+        .section-header {
+            margin-bottom: 60px;
+        }
+        .section-title {
+            font-size: 2.5rem;
+        }
+        .section-subtitle {
+            font-size: 1.1rem;
+        }
+        .achievements-grid {
+            gap: 50px;
+        }
+        .achievement-circle {
+            width: 180px;
+            height: 180px;
+            border-width: 5px;
+        }
+        .achievement-value {
+            font-size: 3.8rem;
+        }
+        .achievement-title {
+            font-size: 1.4rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .achievements {
+            padding: 50px 0;
+        }
+        .section-header {
+            margin-bottom: 50px;
+        }
+        .section-title {
+            font-size: 2.2rem;
+        }
+         .achievements-grid {
+            grid-template-columns: 1fr;
+            max-width: 320px;
+            margin: 0 auto;
+            gap: 50px;
+        }
+        .achievement-circle {
+            width: 160px;
+            height: 160px;
+        }
+        .achievement-value {
+            font-size: 3.2rem;
+        }
+        .achievement-title {
+            font-size: 1.3rem;
+        }
+        .achievement-description {
+            font-size: 0.95rem;
+        }
+    }
+</style>

@@ -1,0 +1,40 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Footer from '../components/Footer.astro';
+import FloatingButton from '../components/FloatingButton.astro';
+import TopBar from '../components/TopBar.astro';
+import Header from '../components/Header.astro';
+import Hero from '../components/Hero.astro';
+import Services from '../components/Services.astro';
+import Achievements from '../components/Achievements.astro';
+import InfoSection from '../components/InfoSection.astro';
+import ContactUs from '../components/ContactUs.astro';
+---
+
+<Layout title="شركة الإيمان للتطوير العقاري">
+  <TopBar />
+  <Header showMenu={true} />
+  <Hero 
+    title="أهلاً بكم في شركة الإيمان للاستثمار والتطوير العقاري"
+    subtitle="هندسة الاستثمار، وفن التطوير في قلب صعيد مصر."
+  />
+  <main>
+    <Services />
+    <Achievements />
+    <InfoSection />
+    <ContactUs />
+  </main>
+  <Footer />
+  <FloatingButton />
+</Layout>
+
+<style>
+  main {
+    /* Add some space between sections if needed */
+    display: flex;
+    flex-direction: column;
+    gap: 3rem; /* Adjust the gap as needed */
+    margin-top: 3rem; /* Space below the hero section */
+    margin-bottom: 3rem; /* Space above the footer */
+  }
+</style>
