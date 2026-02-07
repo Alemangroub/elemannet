@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="ar"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><link rel="icon" type="image/png" href="/logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet"><meta name="generator" content="Astro v5.16.4"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><title>تنبيهات الأقساط</title><style>@import"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap";:root{--primary-color: #3f51b5;--primary-dark: #303f9f;--secondary-color: #6c757d;--background-color: #e9edf0;--text-color: #333;--text-light: #555;--border-color: #e0e0e0;--white: #fff;--success-green: #81c784;--error-red: #e57373;--shadow-color: rgba(0, 0, 0, .1)}*,*:before,*:after{box-sizing:border-box;margin:0;padding:0}html{-ms-overflow-style:none;scrollbar-width:none}html::-webkit-scrollbar{display:none}body{font-family:Almarai,Cairo,sans-serif;background-color:var(--background-color);color:var(--text-color);line-height:1.6;direction:rtl;position:relative}.frame{position:fixed;top:0;bottom:0;width:3px;background-color:#fff;z-index:10000}.frame-left{left:0}.frame-right{right:0}#glow-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}h1,h2,h3,h4,h5,h6{font-weight:700;line-height:1.2}a{text-decoration:none;color:var(--primary-color);transition:color .2s ease}img{max-width:100%;display:block}input,button,select,textarea{font-family:inherit;font-size:1rem}
+main{padding:2rem;background-color:#f7f9fc;direction:rtl;font-family:Cairo,sans-serif}.notifications-container{max-width:900px;margin:0 auto}.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;padding-bottom:1.5rem;border-bottom:1px solid #e0e0e0}h1{font-size:2rem;color:#2c3e50;margin:0}.btn-secondary{background-color:#ecf0f1;color:#34495e;border:1px solid #bdc3c7;padding:.7rem 1.4rem;border-radius:8px;text-decoration:none;transition:background-color .2s ease}.btn-secondary:hover{background-color:#e0e5e8}.card{background:#fff;border-radius:10px;margin-bottom:2rem;box-shadow:0 4px 12px #0000000f;overflow:hidden}.notification-category h2{font-size:1.5rem;padding:1rem 1.5rem;margin:0;color:#fff}.notification-list{padding:1rem;display:flex;flex-direction:column;gap:.5rem}.no-data-message{padding:2rem;text-align:center;color:#7f8c8d}.overdue h2{background-color:#e74c3c}.due-soon h2{background-color:#000}.notification-item{display:flex!important;justify-content:space-between!important;align-items:center!important;padding:1rem!important;border-bottom:1px solid #ecf0f1}.notification-item:last-child{border-bottom:none}.item-info{display:flex!important;flex-direction:column!important;gap:.2rem!important;text-align:right}.item-info .customer-name{font-weight:700!important;font-size:1.1rem!important;color:#34495e!important}.item-info .due-date,.item-info .amount{font-size:.95rem!important;color:#7f8c8d!important}.item-actions{flex-shrink:0!important}.btn-primary{display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:.5rem!important;padding:.7rem 1.3rem!important;font-size:.9rem!important;font-weight:600!important;color:#fff!important;background-color:#3b82f6!important;border:none!important;border-radius:8px!important;text-decoration:none!important;box-shadow:0 2px 4px #0000001a!important;transition:all .2s ease-in-out!important;cursor:pointer!important;white-space:nowrap!important}.btn-primary:hover{background-color:#2563eb!important;box-shadow:0 5px 12px #3b82f64d!important;transform:translateY(-2px)!important}.btn-primary svg{width:16px!important;height:16px!important;stroke:#fff!important;stroke-width:2.5!important}.loader-container{text-align:center;padding:4rem}.loader{margin:0 auto 1rem;width:50px;height:50px;border:5px solid #f3f3f3;border-top:5px solid #3498db;border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{0%{transform:rotate(0)}to{transform:rotate(360deg)}}
+</style></head> <body> <!-- Frame Elements --> <div class="frame frame-left"></div> <div class="frame frame-right"></div>  <main> <div class="notifications-container"> <div class="header"> <h1>تنبيهات الأقساط</h1> <a href="/admin/installments" class="btn btn-secondary">&larr; العودة إلى العقود</a> </div> <div id="loader" class="loader-container"> <div class="loader"></div> <p>جاري تحليل الأقساط...</p> </div> <div id="notifications-content" style="display: none;"> <!-- Overdue Installments --> <div class="notification-category card overdue"> <h2>أقساط مستحقة (فات موعدها)</h2> <div id="overdue-list" class="notification-list"></div> <div id="no-overdue" class="no-data-message" style="display: none;">لا توجد أقساط مستحقة حاليًا.</div> </div> <!-- Due Soon Installments --> <div class="notification-category card due-soon"> <h2>أقساط تستحق قريبًا (خلال 7 أيام)</h2> <div id="due-soon-list" class="notification-list"></div> <div id="no-due-soon" class="no-data-message" style="display: none;">لا توجد أقساط تستحق خلال الأيام السبعة القادمة.</div> </div> </div> </div> </main>  <script>
+            // This script ensures that the search input toggles visibility without submitting the form.
+            if (!document.body.dataset.globalListenerAttached) {
+                document.body.dataset.globalListenerAttached = 'true';
+
+                document.addEventListener('click', function(e) {
+                    const searchIcon = e.target.closest('#search-icon');
+
+                    if (!searchIcon) {
+                        return;
+                    }
+
+                    e.preventDefault();
+
+                    const searchInput = document.getElementById('search-input');
+                    const searchForm = document.getElementById('search-form');
+
+                    if (!searchInput || !searchForm) {
+                        return;
+                    }
+                    
+                    searchInput.classList.toggle('active');
+
+                    if (searchInput.classList.contains('active')) {
+                        searchInput.focus();
+                    }
+                });
+
+                const searchForm = document.getElementById('search-form');
+                if (searchForm) {
+                    searchForm.addEventListener('submit', function(e) {
+                        const searchInput = document.getElementById('search-input');
+                        if (searchInput && searchInput.value.trim() === '') {
+                            e.preventDefault(); // Prevent submission if the input is empty
+                        }
+                    });
+                }
+            }
+        </script> </body> </html>   <script type="module" src="/elemannet/_astro/notifications.astro_astro_type_script_index_0_lang.rICj5Aju.js"></script>

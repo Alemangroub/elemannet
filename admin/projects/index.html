@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="ar"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><link rel="icon" type="image/png" href="/logo.png"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Almarai:wght@300;400;700;800&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet"><meta name="generator" content="Astro v5.16.4"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"><title>إدارة المشروعات</title><style>@import"https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap";:root{--primary-color: #3f51b5;--primary-dark: #303f9f;--secondary-color: #6c757d;--background-color: #e9edf0;--text-color: #333;--text-light: #555;--border-color: #e0e0e0;--white: #fff;--success-green: #81c784;--error-red: #e57373;--shadow-color: rgba(0, 0, 0, .1)}*,*:before,*:after{box-sizing:border-box;margin:0;padding:0}html{-ms-overflow-style:none;scrollbar-width:none}html::-webkit-scrollbar{display:none}body{font-family:Almarai,Cairo,sans-serif;background-color:var(--background-color);color:var(--text-color);line-height:1.6;direction:rtl;position:relative}.frame{position:fixed;top:0;bottom:0;width:3px;background-color:#fff;z-index:10000}.frame-left{left:0}.frame-right{right:0}#glow-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}h1,h2,h3,h4,h5,h6{font-weight:700;line-height:1.2}a{text-decoration:none;color:var(--primary-color);transition:color .2s ease}img{max-width:100%;display:block}input,button,select,textarea{font-family:inherit;font-size:1rem}
+.projects-admin-page[data-astro-cid-jm74fzil]{padding:4rem 2rem;background-color:#f4f7f6;min-height:100vh;direction:rtl;font-family:Cairo,sans-serif}.container[data-astro-cid-jm74fzil]{max-width:1200px;margin:0 auto;background-color:#fff;padding:2rem;border-radius:12px;box-shadow:0 10px 25px #0000001a}.page-header[data-astro-cid-jm74fzil]{text-align:center;margin-bottom:2.5rem;border-bottom:1px solid #e0e0e0;padding-bottom:1.5rem}.page-header[data-astro-cid-jm74fzil] h1[data-astro-cid-jm74fzil]{font-size:2.5rem;color:#333;font-weight:900}.page-header[data-astro-cid-jm74fzil] p[data-astro-cid-jm74fzil]{font-size:1.1rem;color:#666}.content-placeholder[data-astro-cid-jm74fzil]{text-align:center;padding:4rem 2rem;border:2px dashed #ccc;border-radius:8px;margin-bottom:2rem}.content-placeholder[data-astro-cid-jm74fzil] p[data-astro-cid-jm74fzil]{font-size:1.2rem;color:#888;font-weight:600}.back-button[data-astro-cid-jm74fzil]{display:inline-block;padding:.8rem 1.5rem;background-color:#3f51b5;color:#fff;text-decoration:none;border-radius:8px;font-size:1rem;font-weight:700;transition:background-color .3s ease}.back-button[data-astro-cid-jm74fzil]:hover{background-color:#303f9f}
+</style></head> <body> <!-- Frame Elements --> <div class="frame frame-left"></div> <div class="frame frame-right"></div>  <main class="projects-admin-page" data-astro-cid-jm74fzil> <div class="container" data-astro-cid-jm74fzil> <div class="page-header" data-astro-cid-jm74fzil> <h1 data-astro-cid-jm74fzil>إدارة المشروعات</h1> <p data-astro-cid-jm74fzil>من هذه الصفحة يمكنك إضافة وتعديل وحذف المشاريع الخاصة بالشركة.</p> </div> <!-- المحتوى المستقبلي لإدارة المشاريع سيتم إضافته هنا --> <div class="content-placeholder" data-astro-cid-jm74fzil> <p data-astro-cid-jm74fzil>سيتم بناء هذه الواجهة قريبًا...</p> </div> <a href="/admin" class="back-button" data-astro-cid-jm74fzil>العودة إلى لوحة التحكم</a> </div> </main>  <script>
+            // This script ensures that the search input toggles visibility without submitting the form.
+            if (!document.body.dataset.globalListenerAttached) {
+                document.body.dataset.globalListenerAttached = 'true';
+
+                document.addEventListener('click', function(e) {
+                    const searchIcon = e.target.closest('#search-icon');
+
+                    if (!searchIcon) {
+                        return;
+                    }
+
+                    e.preventDefault();
+
+                    const searchInput = document.getElementById('search-input');
+                    const searchForm = document.getElementById('search-form');
+
+                    if (!searchInput || !searchForm) {
+                        return;
+                    }
+                    
+                    searchInput.classList.toggle('active');
+
+                    if (searchInput.classList.contains('active')) {
+                        searchInput.focus();
+                    }
+                });
+
+                const searchForm = document.getElementById('search-form');
+                if (searchForm) {
+                    searchForm.addEventListener('submit', function(e) {
+                        const searchInput = document.getElementById('search-input');
+                        if (searchInput && searchInput.value.trim() === '') {
+                            e.preventDefault(); // Prevent submission if the input is empty
+                        }
+                    });
+                }
+            }
+        </script> </body> </html>  

@@ -1,0 +1,12 @@
+import{b as f,a as g,c as i,i as r,q as p,h,f as E}from"./firebase.CeNGk6Xb.js";const l=f(g),C=document.getElementById("contracts-list"),D=document.getElementById("loader"),m=document.getElementById("no-data"),u=t=>t.toLocaleString("ar-EG",{style:"currency",currency:"EGP"});async function b(){const t=i(l,"contracts"),o=await r(t);document.getElementById("summary-total-contracts").textContent=o.size;const s=i(l,"installments"),n=await r(s);let a=0,e=0;n.forEach(d=>{const c=d.data();a+=Number(c.amount||0),c.status==="paid"&&(e+=Number(c.amount||0))}),document.getElementById("summary-total-amount").textContent=u(a),document.getElementById("summary-total-paid").textContent=u(e)}async function v(){try{const t=p(i(l,"contracts"),h("createdAt","desc")),o=await r(t);o.empty?m.style.display="block":o.forEach(s=>{const n=s.data(),a=s.id,e=document.createElement("a");e.href=`/admin/contract-details?id=${a}`,e.className="contract-item",e.innerHTML=`
+                        <div class="item-details">
+                            <div class="item-customer-name">${n.customerName}</div>
+                            <div class="item-sub-details">
+                                <span><strong>رقم الهاتف:</strong> ${n.customerPhone||"غير متوفر"}</span>
+                                <span><strong>نوع الوحدة:</strong> ${n.unitType}</span>
+                                <span><strong>موقع الوحدة:</strong> ${n.unitLocation||"غير متوفر"}</span>
+                                <span><strong>المبلغ الإجمالي:</strong> ${u(n.totalAmount)}</span>
+                            </div>
+                        </div>
+                        <div class="item-arrow">&lsaquo;</div>
+                    `,C.appendChild(e)})}catch(t){console.error("Error fetching contracts: ",t),m.textContent="حدث خطأ أثناء تحميل البيانات.",m.style.display="block"}finally{D.style.display="none"}}async function w(){const t=document.querySelector("#notifications-btn .notification-badge");if(t)try{const o=p(i(l,"installments"),E("status","==","unpaid")),s=await r(o),n=new Date;n.setHours(0,0,0,0);const a=new Date;a.setDate(n.getDate()+7),a.setHours(0,0,0,0);let e=0;s.forEach(d=>{const c=d.data(),y=new Date(c.dueDate);(y<n||y<=a)&&e++}),e>0?(t.textContent=e,t.style.display="inline-block"):t.style.display="none"}catch(o){console.error("Error fetching notification count:",o),t.style.display="none"}}document.addEventListener("DOMContentLoaded",()=>{b(),v(),w()});
