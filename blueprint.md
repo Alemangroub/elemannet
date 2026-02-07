@@ -1,35 +1,46 @@
-# Project Blueprint
+# 🚀 Blueprint: مشروع شركة الإيمان للتطوير العقاري
 
-## Overview
+## 📜 نظرة عامة
 
-This project is a website for "elemannet," cloned from the GitHub repository `https://github.com/Alemangroub/elemannet`. The primary goal is to get the website running in the development environment and then deploy it.
+هذا المستند هو المخطط الرئيسي وخريطة الطريق لموقع شركة الإيمان للتطوير العقاري. تم بناء هذا المشروع باستخدام Astro.js مع التركيز على الأداء العالي، التصميم الحديث، وتجربة المستخدم السلسة. الهدف هو إنشاء واجهة رقمية احترافية تعكس جودة مشاريع الشركة ورؤيتها في السوق.
 
-## Project Outline
+---
 
-### Design & Style
+## 🎨 التوثيق والتصميم العام
 
-*   **Framework:** Astro.js
-*   **Styling:** The project likely uses a combination of global CSS and component-specific styles. The exact styling approach will be determined by analyzing the project files.
+يحتوي هذا القسم على تفاصيل جميع المكونات والميزات والقرارات التصميمية المطبقة في المشروع حتى الآن.
 
-### Features
+### الهوية البصرية والتصميم
 
-*   The features are based on the cloned repository. The initial setup includes the pages and components present in the `elemannet` project.
+*   **الألوان:** تم استخدام نظام لوني احترافي يركز على درجات الأزرق الداكن (`#2c3e50`) والرمادي، مع خلفية بيج فاتحة (`#F8F6F4`) تعطي إحساسًا بالدفء.
+*   **الخطوط:**
+    *   **خط 'Cairo':** للعناوين الرئيسية وزر التواصل وحقل البحث.
+    *   **خط 'Almarai':** للنصوص العامة والفقرات والشعار الفرعي.
+*   **التصميم المتجاوب:** تصميم متجاوب بالكامل مع جميع أحجام الشاشات.
+*   **الحركات:** تم إضافة تأثيرات حركة مدروسة لتحسين تجربة المستخدم.
 
-## Current Task: Initial Setup and Deployment
+### مكونات المشروع والميزات
 
-### Plan
+1.  **الشعار والقائمة العلوية (Header):**
+    *   شعار الشركة مع اسم "الإيمان" و"للتطوير العقاري".
+    *   قائمة تنقل تحتوي على (الرئيسية، عن الشركة، المشاريع، تواصل معنا).
+    *   حقل بحث فعال.
+    *   زر "تواصل معنا" بلون مميز.
 
-1.  **Clone Repository:** Clone the `elemannet` repository from GitHub.
-2.  **Install Dependencies:** Run `npm install` to install the necessary packages.
-3.  **Analyze Project Structure:** Examine the file structure to understand the project's layout, pages, and components.
-4.  **Run Development Server:** Start the development server to preview the website.
-5.  **Deploy:** Deploy the website to Firebase Hosting.
+2.  **قسم Hero:**
+    *   صورة خلفية معمارية حديثة مع تأثير Parallax.
+    *   عنوان رئيسي جذاب: "نبني الحاضر، ونشيد المستقبل".
+    *   نص فرعي يوضح رؤية الشركة.
 
-### Steps for the Current Request
+3.  **قسم الخدمات (Our Services):**
+    *   عرض للخدمات الأساسية (التطوير العقاري، إدارة المشاريع، الاستشارات) في بطاقات أنيقة.
 
-1.  Clone the repository `https://github.com/Alemangroub/elemannet`. (Completed)
-2.  Run `npm install`. (Completed)
-3.  Create this `blueprint.md` file.
-4.  List the files in the project to understand the structure.
-5.  Start the development server using `npm run dev`.
-6.  Deploy the application.
+4.  **قسم الإنجازات (Our Achievements):**
+    *   عرض أرقام الشركة (عملاء، مشاريع، وحدات) في بطاقات تفاعلية.
+
+5.  **التجاوب الكامل للصفحة الرئيسية:** تم جعل جميع أقسام الصفحة الرئيسية (Hero, Services, Achievements) متجاوبة بالكامل مع الهواتف المحمولة، مع تحسينات في الأداء مثل إلغاء تأثير Parallax على الموبايل.
+
+## 🚀 النشر والاستضافة (Deployment)
+
+*   **المنصة:** يتم استضافة الموقع على GitHub Pages.
+*   **النشر التلقائي:** تم إعداد GitHub Actions لنشر الموقع تلقائيًا عند أي تحديث على الفرع `main`.
