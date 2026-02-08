@@ -68,7 +68,7 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { db } from '../../firebase.js';
+  import { db } from '../../firebase/client.ts';
   import { collection, addDoc } from "firebase/firestore";
 
   const form = document.getElementById('add-project-form');
@@ -142,7 +142,7 @@ import Layout from '../../layouts/Layout.astro';
       submitBtn.textContent = 'حفظ المشروع';
     }
   });
-</scrip>
+</script>
 
 <style>
   .add-project-page { padding: 4rem 2rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
