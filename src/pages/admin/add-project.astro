@@ -1,0 +1,176 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="إضافة مشروع جديد">
+  <main class="add-project-page">
+    <div class="container">
+      <div class="page-header">
+        <h1>إضافة مشروع جديد</h1>
+        <p>ادخل تفاصيل المشروع الجديد أدناه.</p>
+      </div>
+
+      <form class="project-form" id="add-project-form">
+        <!-- Project Details -->
+        <div class="form-group">
+          <label for="projectName">اسم المشروع</label>
+          <input type="text" id="projectName" name="projectName" required>
+        </div>
+        <div class="form-group">
+          <label for="projectCode">كود المشروع</label>
+          <input type="text" id="projectCode" name="projectCode" required>
+        </div>
+        <div class="form-group">
+          <label for="projectAddress">العنوان</label>
+          <input type="text" id="projectAddress" name="projectAddress" required>
+        </div>
+
+        <hr class="divider">
+
+        <!-- Static Supervisors -->
+        <div class="person-group">
+            <div class="form-group">
+                <label for="supervisor1Name">اسم المشرف</label>
+                <input type="text" name="personName" required>
+            </div>
+            <div class="form-group">
+                <label for="supervisor1Email">بريد المشرف</label>
+                <input type="email" name="personEmail" required>
+            </div>
+        </div>
+        <div class="person-group">
+            <div class="form-group">
+                <label for="engineerName">اسم المهندس</label>
+                <input type="text" name="personName">
+            </div>
+            <div class="form-group">
+                <label for="engineerEmail">بريد المهندس</label>
+                <input type="email" name="personEmail">
+            </div>
+        </div>
+
+        <!-- Dynamic Supervisors Container -->
+        <div id="additional-persons-container"></div>
+
+        <!-- Add Button -->
+        <div class="add-person-action">
+          <button type="button" id="add-person-btn" class="btn btn-add">+ إضافة مشرف/مهندس آخر</button>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="submit" id="submit-btn" class="btn btn-primary">حفظ المشروع</button>
+          <a href="/admin/projects" class="btn btn-secondary">إلغاء</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import { db } from '../../firebase.js';
+  import { collection, addDoc } from "firebase/firestore";
+
+  const form = document.getElementById('add-project-form');
+  const addPersonBtn = document.getElementById('add-person-btn');
+  const container = document.getElementById('additional-persons-container');
+  const submitBtn = document.getElementById('submit-btn');
+  let personCounter = 2;
+
+  addPersonBtn.addEventListener('click', () => {
+    personCounter++;
+    const newPersonGroup = document.createElement('div');
+    newPersonGroup.className = 'person-group dynamic';
+    newPersonGroup.innerHTML = `
+        <div class="form-group">
+            <label>الاسم (الشخص ${personCounter})</label>
+            <input type="text" name="personName">
+        </div>
+        <div class="form-group">
+            <label>البريد الإلكتروني (الشخص ${personCounter})</label>
+            <input type="email" name="personEmail">
+        </div>
+        <div class="remove-btn-container">
+          <button type="button" class="btn-remove">إزالة</button>
+        </div>
+    `;
+    container.appendChild(newPersonGroup);
+  });
+
+  container.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-remove')) {
+          e.target.closest('.person-group.dynamic').remove();
+      }
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جارٍ الحفظ...';
+
+    const personGroups = form.querySelectorAll('.person-group');
+    const supervisors = [];
+    const supervisorEmails = [];
+
+    personGroups.forEach(group => {
+        const nameInput = group.querySelector('input[name="personName"]');
+        const emailInput = group.querySelector('input[name="personEmail"]');
+
+        if (nameInput && emailInput && nameInput.value.trim() !== '' && emailInput.value.trim() !== '') {
+            const name = nameInput.value;
+            const email = emailInput.value;
+            supervisors.push({ name, email });
+            supervisorEmails.push(email);
+        }
+    });
+    
+    const projectData = {
+        projectName: form.projectName.value,
+        projectCode: form.projectCode.value,
+        projectAddress: form.projectAddress.value,
+        supervisors,
+        supervisorEmails
+    };
+
+    try {
+      await addDoc(collection(db, "projects"), projectData);
+      window.location.href = '/admin/projects';
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert('حدث خطأ أثناء حفظ المشروع. يرجى المحاولة مرة أخرى.');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'حفظ المشروع';
+    }
+  });
+</scrip>
+
+<style>
+  .add-project-page { padding: 4rem 2rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .container { max-width: 800px; margin: 0 auto; background-color: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+  .page-header { text-align: right; margin-bottom: 2rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 1.5rem; }
+  .page-header h1 { font-size: 2.5rem; color: #333; font-weight: 900; }
+  .page-header p { font-size: 1.1rem; color: #666; }
+  .project-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 0.5rem; text-align: right; }
+  .form-group input { padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; font-family: 'Cairo', sans-serif; transition: all 0.3s ease; }
+  .form-group input:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
+  .divider { border: 0; height: 1px; background-color: #e0e0e0; margin: 1rem 0; }
+  .person-group { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1.5rem; border: 1px solid #e9ecef; border-radius: 8px; background-color: #f8f9fa; }
+  .person-group.dynamic { grid-template-columns: 1fr 1fr auto; align-items: end; }
+  .remove-btn-container { display: flex; align-items: flex-end; }
+  .btn-remove { background-color: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; transition: background-color 0.3s; font-size: 0.9rem; height: fit-content; }
+  .btn-remove:hover { background-color: #c82333; }
+  .add-person-action { text-align: left; margin-top: -1rem; margin-bottom: 1rem; }
+  .btn-add { background: none; border: 1px dashed #3f51b5; color: #3f51b5; font-weight: 700; padding: 0.6rem 1rem; border-radius: 8px; cursor: pointer; transition: all 0.3s; }
+  .btn-add:hover { background-color: rgba(63, 81, 181, 0.05); }
+  .form-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem; }
+  .btn { display: inline-block; padding: 0.8rem 1.5rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 1rem; font-weight: 700; transition: all 0.3s ease; text-align: center; border: none; cursor: pointer; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background-color: #3f51b5; }
+  .btn-primary:hover { background-color: #303f9f; }
+  .btn-primary:disabled { background-color: #aaa; cursor: not-allowed; }
+  .btn-secondary { background-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; }
+  @media (max-width: 600px) { .person-group { grid-template-columns: 1fr; } }
+</style>

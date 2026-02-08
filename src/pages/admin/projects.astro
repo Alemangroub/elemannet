@@ -6,8 +6,11 @@ import Layout from '../../layouts/Layout.astro';
   <main class="projects-admin-page">
     <div class="container">
       <div class="page-header">
-        <h1>إدارة المشروعات</h1>
-        <p>من هذه الصفحة يمكنك إضافة وتعديل وحذف المشاريع الخاصة بالشركة.</p>
+        <div class="header-content">
+          <h1>إدارة المشروعات</h1>
+          <p>من هذه الصفحة يمكنك إضافة وتعديل وحذف المشاريع الخاصة بالشركة.</p>
+        </div>
+        <a href="/admin/add-project" class="btn btn-primary">اضافه مشروع</a>
       </div>
 
       <!-- المحتوى المستقبلي لإدارة المشاريع سيتم إضافته هنا -->
@@ -15,7 +18,7 @@ import Layout from '../../layouts/Layout.astro';
         <p>سيتم بناء هذه الواجهة قريبًا...</p>
       </div>
 
-      <a href="/admin" class="back-button">العودة إلى لوحة التحكم</a>
+      <a href="/admin" class="btn btn-secondary">العودة إلى لوحة التحكم</a>
     </div>
   </main>
 </Layout>
@@ -26,7 +29,7 @@ import Layout from '../../layouts/Layout.astro';
     background-color: #f4f7f6;
     min-height: 100vh;
     direction: rtl;
-     font-family: 'Cairo', sans-serif;
+    font-family: 'Cairo', sans-serif;
   }
 
   .container {
@@ -39,10 +42,17 @@ import Layout from '../../layouts/Layout.astro';
   }
 
   .page-header {
-    text-align: center;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem; /* Add some space between header content and button */
     margin-bottom: 2.5rem;
     border-bottom: 1px solid #e0e0e0;
     padding-bottom: 1.5rem;
+  }
+
+  .header-content {
+    text-align: right;
   }
 
   .page-header h1 {
@@ -70,19 +80,40 @@ import Layout from '../../layouts/Layout.astro';
     font-weight: 600;
   }
 
-  .back-button {
+  /* === Refactored Button Styles === */
+  .btn {
     display: inline-block;
     padding: 0.8rem 1.5rem;
-    background-color: #3f51b5;
     color: #fff;
     text-decoration: none;
     border-radius: 8px;
     font-size: 1rem;
     font-weight: 700;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap; /* Prevent text from wrapping */
+    flex-shrink: 0; /* Prevent the button from shrinking in a flex container */
   }
 
-  .back-button:hover {
+  .btn:hover {
+    transform: translateY(-2px); /* Add a subtle lift effect on hover */
+  }
+
+  .btn-primary {
+    background-color: #3f51b5; /* Blue */
+  }
+
+  .btn-primary:hover {
     background-color: #303f9f;
+  }
+
+  .btn-secondary {
+    background-color: #6c757d; /* Gray */
+  }
+
+  .btn-secondary:hover {
+    background-color: #5a6268;
   }
 </style>

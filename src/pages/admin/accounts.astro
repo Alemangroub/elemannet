@@ -1,0 +1,201 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="إدارة الحسابات">
+  <main class="accounts-page">
+    <div class="container">
+
+      <!-- Section 1: Create New Account -->
+      <div class="card">
+        <div class="page-header">
+          <h1>إنشاء حساب جديد</h1>
+          <p>للمشرفين والمهندسين</p>
+        </div>
+        <form class="create-form" id="create-account-form">
+          <div class="form-group">
+            <label for="email">البريد الإلكتروني</label>
+            <input type="email" id="email" name="email" required placeholder="e.g., user@example.com">
+          </div>
+          <div class="form-group">
+            <label for="password">كلمة المرور (6+ أحرف)</label>
+            <input type="password" id="password" name="password" required minlength="6">
+          </div>
+          <div id="create-feedback" class="feedback-message"></div>
+          <div class="form-actions">
+            <button type="submit" id="submit-button" class="btn btn-primary">إنشاء الحساب</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Section 2: List All Users -->
+      <div class="card" style="margin-top: 2rem;">
+        <div class="page-header">
+          <h1>قائمة المستخدمين</h1>
+          <p>عرض جميع المستخدمين والمشاريع المسندة إليهم.</p>
+        </div>
+        <div id="users-list-container">
+          <p id="loading-users">جارٍ تحميل قائمة المستخدمين...</p>
+        </div>
+          <a href="/admin" class="btn btn-secondary" style="margin-top: 1.5rem; float: left;">العودة للوحة التحكم</a>
+      </div>
+
+    </div>
+  </main>
+</Layout>
+
+<script>
+    import { auth, db } from '../../firebase.js';
+    import { createUserWithEmailAndPassword } from "firebase/auth";
+    import { collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "firebase/firestore";
+
+    const createForm = document.getElementById('create-account-form');
+    const submitButton = document.getElementById('submit-button');
+    const createFeedback = document.getElementById('create-feedback');
+    const usersListContainer = document.getElementById('users-list-container');
+    const loadingUsersMessage = document.getElementById('loading-users');
+
+    // --- Logic for Creating New Users ---
+    createForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitButton.disabled = true;
+        submitButton.textContent = 'جارٍ الإنشاء...';
+        createFeedback.textContent = '';
+        createFeedback.className = 'feedback-message';
+
+        const email = createForm.email.value;
+        const password = createForm.password.value;
+
+        try {
+            // 1. Create user in Firebase Auth
+            await createUserWithEmailAndPassword(auth, email, password);
+
+            // 2. Add user to our 'users' collection in Firestore for tracking
+            await addDoc(collection(db, "users"), {
+              email: email.toLowerCase(),
+              createdAt: serverTimestamp()
+            });
+
+            createFeedback.textContent = `تم إنشاء الحساب بنجاح: ${email}`;
+            createFeedback.classList.add('success');
+            createForm.reset();
+            
+            // Refresh the list to show the new user
+            loadAndDisplayUsers();
+
+        } catch (error) {
+            console.error("Creation Error:", error);
+            let message = 'حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.';
+            if (error.code === 'auth/email-already-in-use') {
+                message = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+            } else if (error.code === 'auth/weak-password') {
+                message = 'كلمة المرور ضعيفة جدًا. يجب أن تكون 6 أحرف على الأقل.';
+            } else if (error.code === 'auth/invalid-email') {
+                message = 'صيغة البريد الإلكتروني غير صحيحة.';
+            }
+            createFeedback.textContent = message;
+            createFeedback.classList.add('error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'إنشاء الحساب';
+        }
+    });
+
+    // --- Logic for Listing Users and their Projects ---
+    async function loadAndDisplayUsers() {
+        loadingUsersMessage.style.display = 'block';
+        
+        try {
+            // 1. Fetch all projects to map users to projects
+            const projectsSnapshot = await getDocs(collection(db, "projects"));
+            const userProjectsMap = {}; // Maps email -> [proj1, proj2]
+
+            projectsSnapshot.forEach(doc => {
+                const project = doc.data();
+                if (project.supervisorEmails && project.projectName) {
+                    project.supervisorEmails.forEach(email => {
+                        const lowerEmail = email.toLowerCase();
+                        if (!userProjectsMap[lowerEmail]) {
+                            userProjectsMap[lowerEmail] = [];
+                        }
+                        userProjectsMap[lowerEmail].push(project.projectName);
+                    });
+                }
+            });
+
+            // 2. Fetch all users from our 'users' collection
+            const usersQuery = query(collection(db, "users"), orderBy("createdAt", "desc"));
+            const usersSnapshot = await getDocs(usersQuery);
+
+            if (usersSnapshot.empty) {
+                usersListContainer.innerHTML = '<p>لم يتم إنشاء أي مستخدمين بعد.</p>';
+                return;
+            }
+            
+            // 3. Build the HTML table
+            let tableHTML = '<table class="users-table"><thead><tr><th>البريد الإلكتروني</th><th>المشاريع المسندة إليه</th></tr></thead><tbody>';
+
+            usersSnapshot.forEach(doc => {
+                const user = doc.data();
+                const userEmail = user.email.toLowerCase();
+                const assignedProjects = userProjectsMap[userEmail];
+
+                tableHTML += '<tr>';
+                tableHTML += `<td>${user.email}</td>`;
+                if (assignedProjects && assignedProjects.length > 0) {
+                    tableHTML += `<td>${assignedProjects.join(', ')}</td>`;
+                } else {
+                    tableHTML += `<td><span class="unassigned">لم يسند له مشروع بعد</span></td>`;
+                }
+                tableHTML += '</tr>';
+            });
+
+            tableHTML += '</tbody></table>';
+            usersListContainer.innerHTML = tableHTML;
+
+        } catch (error) {
+            console.error("Error loading users:", error);
+            usersListContainer.innerHTML = '<p class="error">فشل تحميل قائمة المستخدمين. يرجى تحديث الصفحة.</p>'
+        }
+    }
+
+    // Initial load when the page is ready
+    document.addEventListener('DOMContentLoaded', loadAndDisplayUsers);
+</script>
+
+<style>
+  .accounts-page { padding: 4rem 2rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+  .container { max-width: 900px; margin: 0 auto; }
+  .card { background-color: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); }
+  .page-header { text-align: right; margin-bottom: 2rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 1.5rem; }
+  .page-header h1 { font-size: 2rem; font-weight: 900; color: #333; }
+  .page-header p { font-size: 1.1rem; color: #666; margin-top: 0.25rem; }
+  .create-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label { font-weight: 700; color: #333; margin-bottom: 0.5rem; }
+  .form-group input { padding: 0.8rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; transition: all 0.3s; }
+  .form-group input:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
+  .form-actions { display: flex; justify-content: flex-end; }
+  .feedback-message { padding: 1rem; border-radius: 8px; text-align: center; font-weight: 600; margin-top: -0.5rem; margin-bottom: 0.5rem; display: none; }
+  .feedback-message.success { display: block; background-color: #d4edda; color: #155724; }
+  .feedback-message.error { display: block; background-color: #f8d7da; color: #721c24; }
+  
+  /* Users Table Styles */
+  #users-list-container { width: 100%; }
+  .users-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  .users-table th, .users-table td { padding: 1rem; text-align: right; border-bottom: 1px solid #e9ecef; }
+  .users-table th { font-weight: 900; background-color: #f8f9fa; color: #343a40; font-size: 1rem; }
+  .users-table td { color: #495057; }
+  .users-table tr:last-child td { border-bottom: none; }
+  .users-table tr:hover { background-color: #f1f3f5; }
+  .unassigned { color: #868e96; font-style: italic; }
+  
+  /* Button Styles */
+  .btn { padding: 0.8rem 1.5rem; border-radius: 8px; font-size: 1rem; font-weight: 700; text-decoration: none; transition: all 0.3s; text-align: center; border: none; cursor: pointer; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary { background-color: #3f51b5; color: #fff; }
+  .btn-primary:disabled { background-color: #aaa; cursor: not-allowed; }
+  .btn-primary:hover:not(:disabled) { background-color: #303f9f; }
+  .btn-secondary { background-color: #6c757d; color: #fff; }
+  .btn-secondary:hover { background-color: #5a6268; }
+</style>
