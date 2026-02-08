@@ -40,6 +40,14 @@ import AdminLogin from '../components/AdminLogin.astro';
                     <p>إضافة مشاريع جديدة وتعيين المشرفين والمهندسين المسؤولين عنها.</p>
                 </div>
             </a>
+
+            <!-- Card 3: User Accounts (from remote) -->
+            <a href="/admin/accounts" class="card-link">
+                <div class="card">
+                    <h3>حسابات المشرفين والمهندسين</h3>
+                    <p>إدارة وإنشاء حسابات المستخدمين الجدد.</p>
+                </div>
+            </a>
         </div>
       </div>
     </div>
@@ -152,7 +160,8 @@ import AdminLogin from '../components/AdminLogin.astro';
 
   .grid-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    /* Updated to use 1fr for better responsiveness */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
     gap: 2rem;
     padding: 2rem 0;
   }
@@ -171,6 +180,8 @@ import AdminLogin from '../components/AdminLogin.astro';
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     height: 100%;
+    display: flex; /* Added for better internal alignment */
+    flex-direction: column; /* Added for better internal alignment */
   }
 
   .card:hover {
@@ -189,5 +200,6 @@ import AdminLogin from '../components/AdminLogin.astro';
     font-size: 1rem;
     color: #6b7280;
     line-height: 1.6;
+    flex-grow: 1; /* Allow p to take up space */
   }
 </style>
