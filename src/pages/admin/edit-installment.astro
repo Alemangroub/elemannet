@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="تعديل القسط">
     <main id="edit-installment-page">
@@ -108,17 +108,14 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { getAuth, onAuthStateChanged } from 'firebase/auth';
-    import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
-    import { app } from '../../firebase';
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { doc, getDoc, updateDoc } from 'firebase/firestore';
+    import { auth, db } from '../../firebase/client';
 
     const loader = document.getElementById('loader');
     const form = document.getElementById('edit-installment-form');
     const errorMessage = document.getElementById('error-message');
     const cancelBtn = document.getElementById('cancel-btn');
-
-    const auth = getAuth(app);
-    const db = getFirestore(app);
 
     let installmentId = null;
     let contractId = null;

@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="لوحة التحكم - العقود">
     <main>
@@ -213,15 +213,32 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { getFirestore, collection, getDocs, query, orderBy, where } from 'firebase/firestore';
-    import { app } from '../../firebase';
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+    import { auth, db } from '../../firebase/client';
 
-    const db = getFirestore(app);
     const contractsList = document.getElementById('contracts-list');
     const loader = document.getElementById('loader');
     const noData = document.getElementById('no-data');
 
     const formatCurrency = (num) => num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+
+    // --- Auth Check ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // User is logged in, initialize the dashboard
+            initializeDashboard();
+        } else {
+            // User is not logged in, redirect to login page
+            window.location.href = '/admin';
+        }
+    });
+
+    function initializeDashboard() {
+        calculateAndDisplaySummary();
+        fetchAndDisplayContracts();
+        fetchNotificationCount();
+    }
 
     async function calculateAndDisplaySummary() {
         // Fetch contracts for count
@@ -323,10 +340,4 @@ import Layout from '../../layouts/Layout.astro';
             badge.style.display = 'none';
         }
     }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        calculateAndDisplaySummary();
-        fetchAndDisplayContracts();
-        fetchNotificationCount();
-    });
 </script>

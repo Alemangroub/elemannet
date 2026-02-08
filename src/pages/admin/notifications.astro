@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="تنبيهات الأقساط">
     <main>
@@ -188,10 +188,10 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
-    import { app } from '../../firebase';
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { collection, getDocs, query, where } from 'firebase/firestore';
+    import { auth, db } from '../../firebase/client';
 
-    const db = getFirestore(app);
     const loader = document.getElementById('loader');
     const notificationsContent = document.getElementById('notifications-content');
     const overdueList = document.getElementById('overdue-list');
@@ -200,6 +200,17 @@ import Layout from '../../layouts/Layout.astro';
     const noDueSoon = document.getElementById('no-due-soon');
 
     const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
+
+    // --- Auth Check ---
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // User is logged in, fetch the notification data
+            fetchNotifications();
+        } else {
+            // No user, redirect to login
+            window.location.href = '/admin';
+        }
+    });
 
     async function fetchNotifications() {
         try {
@@ -261,6 +272,4 @@ import Layout from '../../layouts/Layout.astro';
             notificationsContent.style.display = 'block';
         }
     }
-
-    document.addEventListener('DOMContentLoaded', fetchNotifications);
 </script>

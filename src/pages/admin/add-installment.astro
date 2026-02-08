@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="إضافة عقد جديد">
     <main>
@@ -157,15 +157,16 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { getAuth, onAuthStateChanged } from 'firebase/auth';
-    import { getFirestore, collection, doc, writeBatch } from 'firebase/firestore';
-    import { app } from '../../firebase';
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { collection, doc, writeBatch } from 'firebase/firestore';
+    import { auth, db } from '../../firebase/client';
 
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-
+    // Auth check to protect the page
     onAuthStateChanged(auth, (user) => {
-        if (!user) { window.location.href = '/admin'; }
+        if (!user) {
+            // If no user is logged in, redirect to the admin login page.
+            window.location.href = '/admin';
+        }
     });
     
     const unitTypeSelect = document.getElementById('unitType');
@@ -277,7 +278,7 @@ import Layout from '../../layouts/Layout.astro';
 
             await batch.commit();
             alert('تم حفظ العقد والأقساط بنجاح!');
-            window.location.href = '/admin/installments'; // <-- Fixed redirect link!
+            window.location.href = '/admin/installments';
 
         } catch (error) {
             console.error("Error adding document: ", error);

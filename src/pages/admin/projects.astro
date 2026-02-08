@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="إدارة المشروعات">
   <main class="projects-admin-page">
@@ -15,7 +15,7 @@ import Layout from '../../layouts/Layout.astro';
         <p>سيتم بناء هذه الواجهة قريبًا...</p>
       </div>
 
-      <a href="/admin" class="back-button">العودة إلى لوحة التحكم</a>
+      <a href="/admin/installments" class="back-button">العودة إلى لوحة التحكم</a>
     </div>
   </main>
 </Layout>
@@ -86,3 +86,14 @@ import Layout from '../../layouts/Layout.astro';
     background-color: #303f9f;
   }
 </style>
+
+<script>
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { auth } from '../../firebase/client';
+
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            window.location.href = '/admin';
+        }
+    });
+</script>

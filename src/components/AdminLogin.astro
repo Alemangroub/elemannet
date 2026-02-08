@@ -1,0 +1,104 @@
+<div class="form-container">
+  <h2>تسجيل دخول المسؤول</h2>
+  <form id="login-form">
+    <div class="input-group">
+      <label for="email">البريد الإلكتروني</label>
+      <input type="email" id="email" required />
+    </div>
+    <div class="input-group">
+      <label for="password">كلمة المرور</label>
+      <input type="password" id="password" required />
+    </div>
+    <button type="submit" class="btn">تسجيل الدخول</button>
+    <p id="error-message" class="error-text"></p>
+  </form>
+</div>
+
+<script>
+  import { auth } from '../firebase/client';
+  import { signInWithEmailAndPassword } from "firebase/auth";
+
+  const loginForm = document.getElementById("login-form")! as HTMLFormElement;
+  const emailInput = document.getElementById("email")! as HTMLInputElement;
+  const passwordInput = document.getElementById("password")! as HTMLInputElement;
+  const errorMessage = document.getElementById("error-message")!;
+  const loginButton = loginForm.querySelector('button[type="submit"]')! as HTMLButtonElement;
+
+  loginForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorMessage.textContent = '';
+
+    loginButton.disabled = true;
+    loginButton.textContent = 'جاري تسجيل الدخول...';
+
+    try {
+      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+      // On successful login, the onAuthStateChanged in admin.astro will handle the view change.
+    } catch (error) {
+      console.error("Login Error:", error);
+      errorMessage.textContent = "البريد الإلكتروني أو كلمة المرور غير صالحة.";
+      loginButton.disabled = false;
+      loginButton.textContent = 'تسجيل الدخول';
+    }
+  });
+</script>
+
+<style>
+  .form-container {
+    background: #ffffff;
+    padding: 2.5rem 3rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+    margin: 0 auto;
+  }
+
+  h2 {
+    color: #333;
+    margin-bottom: 1.5rem;
+  }
+
+  .input-group {
+    margin-bottom: 1.5rem;
+    text-align: right;
+  }
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #555;
+    font-weight: 600;
+  }
+
+  input[type="email"],
+  input[type="password"] {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    direction: ltr;
+    text-align: left;
+  }
+  
+  .btn {
+    width: 100%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #3f51b5;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 1rem;
+  }
+  
+  .error-text {
+    color: #e53935;
+    margin-top: 1rem;
+    min-height: 1.2em;
+  }
+</style>

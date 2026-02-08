@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
----
+--- 
 
 <Layout title="تعديل العقد">
     <main>
@@ -72,10 +72,17 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
-    import { app } from '../../firebase';
+    import { onAuthStateChanged } from 'firebase/auth';
+    import { doc, getDoc, collection, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
+    import { auth, db } from '../../firebase/client';
 
-    const db = getFirestore(app);
+    // Auth Check: Redirect if user is not logged in
+    onAuthStateChanged(auth, (user) => {
+        if (!user) {
+            window.location.href = '/admin';
+        }
+    });
+
     const urlParams = new URLSearchParams(window.location.search);
     const contractId = urlParams.get('id');
 
