@@ -1,69 +1,40 @@
 
-# 🚀 Blueprint: مشروع شركة الإيمان للتطوير العقاري
+# Blueprint: El Eman Company Website
 
-## 📜 نظرة عامة
+## Overview
 
-هذا المستند هو المخطط الرئيسي وخريطة الطريق لموقع شركة الإيمان للتطوير العقاري. تم بناء هذا المشروع باستخدام Astro.js مع التركيز على الأداء العالي، التصميم الحديث، وتجربة المستخدم السلسة. الهدف هو إنشاء واجهة رقمية احترافية تعكس جودة مشاريع الشركة ورؤيتها في السوق.
+This project is a modern, content-focused website for El Eman Company for Real Estate Development, built with Astro.js. The primary goal is to create a fast, highly-performant, and scalable static-first site. It includes a public-facing informational site and a private admin dashboard for managing content like projects and installments.
 
----
+## Project Documentation
 
-## 🎨 التوثيق والتصميم العام
+### Styles & Design
+*   **Framework:** Tailwind CSS for utility-first styling.
+*   **Fonts:** `Cairo` for general text and UI, `Almarai` and `Kalam` for specific design elements.
+*   **Direction:** The site is designed for Arabic (Right-to-Left).
+*   **Admin Dashboard:** A clean, card-based layout for easy navigation. It uses a color palette of `#f0f2f5` (background), `#1f2937` (headings), and `#6b7280` (text).
 
-يحتوي هذا القسم على تفاصيل جميع المكونات والميزات والقرارات التصميمية المطبقة في المشروع حتى الآن.
+### Features Implemented
+*   **Static Pages:** Home, About, Services, and Contact pages.
+*   **File-based Routing:** Standard Astro routing is used for all pages.
+*   **Dynamic Services Pages:** Service detail pages are generated dynamically from slugs.
+*   **Firebase Integration:**
+    *   Firebase Authentication is used to protect the `/admin` route.
+    *   Firestore is used as the database.
+*   **Admin Panel:**
+    *   Protected route at `/admin`.
+    *   Displays a login form (`AdminLogin.astro` component).
+    *   Upon successful login, it shows a dashboard with links to manage "Installments" and "Projects".
+    *   Includes a logout functionality.
+*   **Search Functionality:** A basic search page at `/search`.
 
-### الهوية البصرية والتصميم
+## Current Task: Fix Admin Login Page
 
-*   **الألوان:** تم استخدام نظام لوني احترافي يركز على درجات الأزرق الداكن (`#2c3e50`) والرمادي، مع خلفية بيج فاتحة (`#F8F6F4`) تعطي إحساسًا بالدفء.
-*   **الخطوط:**
-    *   **خط 'Cairo':** للعناوين الرئيسية وزر التواصل وحقل البحث.
-    *   **خط 'Almarai':** للنصوص العامة والفقرات والشعار الفرعي.
-*   **التصميم المتجاوب:** تصميم متجاوب بالكامل مع جميع أحجام الشاشات.
-*   **الحركات:** تم إضافة تأثيرات حركة مدروسة لتحسين تجربة المستخدم.
+**Objective:** The `/admin` page is stuck on a "Checking authentication..." message and never shows the login form or the dashboard.
 
-### مكونات المشروع والميزات
-
-1.  **الشعار والقائمة العلوية (Header):**
-    *   شعار الشركة مع اسم "الإيمان" و"للتطوير العقاري".
-    *   قائمة تنقل تحتوي على (الرئيسية، عن الشركة، المشاريع، تواصل معنا).
-    *   حقل بحث فعال.
-    *   زر "تواصل معنا" بلون مميز.
-
-2.  **قسم Hero:**
-    *   صورة خلفية معمارية حديثة مع تأثير Parallax.
-    *   عنوان رئيسي جذاب: "نبني الحاضر، ونشيد المستقبل".
-    *   نص فرعي يوضح رؤية الشركة.
-
-3.  **قسم الخدمات (Our Services):**
-    *   عرض للخدمات الأساسية (التطوير العقاري، إدارة المشاريع، الاستشارات) في بطاقات أنيقة.
-
-4.  **قسم الإنجازات (Our Achievements):**
-    *   عرض أرقام الشركة (عملاء، مشاريع، وحدات) في بطاقات تفاعلية.
-
-5.  **التجاوب الكامل للصفحة الرئيسية:** تم جعل جميع أقسام الصفحة الرئيسية (Hero, Services, Achievements) متجاوبة بالكامل مع الهواتف المحمولة، مع تحسينات في الأداء مثل إلغاء تأثير Parallax على الموبايل.
-
-## ☁️ إدارة البيانات (Data Management)
-
-*   **قاعدة البيانات:** يتم استخدام **Firebase Firestore** كقاعدة بيانات سحابية لإدارة محتوى الموقع ديناميكيًا (مثل المشاريع، معلومات الشركة، إلخ).
-*   **الوصول الآمن:** يتم الاتصال بـ Firebase عبر متغيرات بيئة آمنة (`import.meta.env`) مخزنة في **GitHub Secrets** لضمان عدم كشف أي مفاتيح حساسة في الكود المصدري.
-
-## 🚀 النشر والاستضافة (Deployment)
-
-*   **المنصة:** يتم استضافة الموقع على **GitHub Pages**، وهي منصة سريعة، مجانية، ومتكاملة مع المستودع.
-*   **النشر التلقائي:** تم إعداد سير عمل **GitHub Actions** (`.github/workflows/deploy.yml`) لبناء ونشر الموقع تلقائيًا على GitHub Pages عند أي تحديث على الفرع `main`.
-
----
-
-## 📝 الخطة الحالية: التحول إلى GitHub Pages وربط Firebase
-
-*   **الحالة:** مكتمل ✅
-*   **الهدف:** تبسيط عملية النشر وزيادة الأمان عبر التحول الكامل إلى استضافة GitHub Pages مع استخدام Firebase كقاعدة بيانات فقط.
-
-### الخطوات المنفذة:
-
-1.  **✅ حذف إعدادات Firebase Hosting:** تم حذف ملفات `firebase.json` و `FIX.yml` وسير العمل القديم.
-2.  **✅ تكوين Astro لـ GitHub Pages:** تم التأكد من أن `astro.config.mjs` معد بشكل صحيح.
-3.  **✅ إنشاء سير عمل GitHub Pages:** تم إنشاء ملف `.github/workflows/deploy.yml` جديد للنشر التلقائي.
-4.  **✅ إعداد اتصال Firebase الآمن:** تم إنشاء `src/firebase/config.js` لاستخدام متغيرات البيئة من GitHub Secrets.
-5.  **✅ تحديث التوثيق:** تم تحديث هذا الملف (`blueprint.md`) ليعكس البنية الجديدة.
-
-<!-- Trigger workflow -->
+**Plan:**
+1.  **Initial Diagnosis (Completed):** Identified and removed a duplicate Firebase configuration file (`src/firebase/config.js`) that was causing an initialization conflict.
+2.  **Current Hypothesis:** The root cause is likely missing or incorrect Firebase environment variables. The Firebase configuration (`src/firebase/client.ts`) depends on `import.meta.env` variables, and if they are not defined, Firebase initialization will fail silently, preventing the `onAuthStateChanged` callback from ever firing.
+3.  **Action Step 1 (Current):** Create this `blueprint.md` file.
+4.  **Action Step 2:** Verify the existence and content of the `.env` file in the project's root directory.
+5.  **Action Step 3:** Report the findings to the user. If the variables are missing, provide instructions on how to create the `.env` file and populate it with their Firebase project credentials.
+6.  **Action Step 4:** Once the environment variables are confirmed to be in place, re-test the `/admin` page to ensure the login form appears as expected.
