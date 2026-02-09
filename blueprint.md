@@ -47,3 +47,4 @@
 *   **النشر التلقائي:** تم إعداد GitHub Actions لنشر الموقع تلقائيًا عند أي تحديث على الفرع `main`.
 
 <!-- Trigger build -->
+<!-- Triggering a new deployment to use the updated secrets. -->
