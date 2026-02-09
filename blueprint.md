@@ -65,3 +65,5 @@
 3.  **✅ إنشاء سير عمل GitHub Pages:** تم إنشاء ملف `.github/workflows/deploy.yml` جديد للنشر التلقائي.
 4.  **✅ إعداد اتصال Firebase الآمن:** تم إنشاء `src/firebase/config.js` لاستخدام متغيرات البيئة من GitHub Secrets.
 5.  **✅ تحديث التوثيق:** تم تحديث هذا الملف (`blueprint.md`) ليعكس البنية الجديدة.
+
+<!-- Trigger workflow -->
