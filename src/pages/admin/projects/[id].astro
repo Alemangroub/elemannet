@@ -1,5 +1,11 @@
 ---
-export const prerender = false;
+// This function tells Astro not to pre-render any pages for this dynamic route during the build.
+// This is necessary for static site generation (output: 'static') when a dynamic page
+// is only intended for server-side or client-side rendering.
+export function getStaticPaths() {
+  return [];
+}
+
 import Layout from '../../../layouts/Layout.astro';
 import { db } from '../../../firebase/client';
 import { doc, getDoc } from 'firebase/firestore';
