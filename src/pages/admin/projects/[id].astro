@@ -1,0 +1,151 @@
+---
+export const prerender = false;
+import Layout from '../../../layouts/Layout.astro';
+import { db } from '../../../firebase/client';
+import { doc, getDoc } from 'firebase/firestore';
+
+// 1. Get the project ID from the URL
+const { id } = Astro.params;
+let project = null;
+let error = null;
+
+// 2. Fetch project data from Firestore
+if (id) {
+  try {
+    const docRef = doc(db, "projects", id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      // 3. If data exists, store it
+      project = docSnap.data();
+    } else {
+      // Handle case where project is not found
+      error = "المشروع المطلوب غير موجود.";
+    }
+  } catch (e) {
+    // Handle any errors during fetch
+    console.error("Error fetching document: ", e);
+    error = "حدث خطأ أثناء محاولة الوصول لبيانات المشروع.";
+  }
+} else {
+    error = "لم يتم تحديد معرّف المشروع.";
+}
+---
+
+<Layout title={project ? `تفاصيل: ${project.name}` : 'تفاصيل المشروع'}>
+    <main class="project-details-page">
+        <div class="container">
+            <!-- Header with Back Link -->
+            <div class="page-header">
+                <a href="/admin/projects" class="back-link">&larr; العودة إلى قائمة المشاريع</a>
+                <h1>تفاصيل المشروع</h1>
+            </div>
+
+            <!-- Display Error if any -->
+            {error && (
+                <div class="error-card">
+                    <p>{error}</p>
+                </div>
+            )}
+
+            <!-- 4. Display Project Details -->
+            {project && (
+                <div class="details-card">
+                    <div class="card-header">
+                        <h2>{project.name}</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="detail-item">
+                            <strong><i class="icon-placeholder"></i> الموقع:</strong>
+                            <p>{project.location || 'غير محدد'}</p>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i class="icon-placeholder"></i> الوصف:</strong>
+                            <p>{project.description || 'لا يوجد وصف إضافي.'}</p>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i class="icon-placeholder"></i> اسم المشرف:</strong>
+                            <p>{project.supervisor || 'غير محدد'}</p>
+                        </div>
+                        <div class="detail-item">
+                            <strong><i class="icon-placeholder"></i> البريد الإلكتروني للمشرف:</strong>
+                            <p>{project.supervisorEmail || 'غير محدد'}</p>
+                        </div>
+                         <div class="detail-item">
+                            <strong><i class="icon-placeholder"></i> تاريخ الإنشاء:</strong>
+                             <p>{project.createdAt ? new Date(project.createdAt.seconds * 1000).toLocaleDateString('ar-EG') : 'غير محدد'}</p>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <a href={`/admin/edit-project/${id}`} class="btn btn-primary">تعديل المشروع</a>
+                    </div>
+                </div>
+            )}
+        </div>
+    </main>
+</Layout>
+
+<style>
+    /* Modern, clean design system */
+    .project-details-page { padding: 3rem 1.5rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .container { max-width: 900px; margin: 0 auto; }
+
+    .page-header { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center; 
+        margin-bottom: 2rem; 
+    }
+    .page-header h1 { font-size: 2rem; color: #1a202c; font-weight: 800; }
+
+    .back-link {
+        text-decoration: none;
+        color: #4a5568;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: color 0.2s ease;
+        display: flex;
+        align-items: center;
+    }
+    .back-link:hover { color: #2d3748; }
+
+    .error-card, .details-card {
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.07), 0 4px 6px -2px rgba(0,0,0,0.05);
+        overflow: hidden;
+    }
+    .error-card { padding: 2rem; text-align: center; color: #e53e3e; font-size: 1.1rem; }
+
+    .card-header { 
+        background-color: #3f51b5; 
+        color: white;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .card-header h2 { margin: 0; font-size: 1.75rem; font-weight: 700; }
+
+    .card-body { padding: 2.5rem 2rem; }
+    .detail-item { margin-bottom: 2rem; }
+    .detail-item:last-child { margin-bottom: 0; }
+
+    .detail-item strong {
+        display: flex;
+        align-items: center;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #2d3748;
+        margin-bottom: 0.6rem;
+    }
+    .detail-item p { margin: 0; font-size: 1.1rem; color: #4a5568; line-height: 1.7; }
+    
+    .card-footer {
+        background-color: #f7f9fc;
+        padding: 1rem 2rem;
+        text-align: left;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .btn { display: inline-block; padding: 0.75rem 1.5rem; background-color: #3f51b5; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.2s ease; }
+    .btn:hover { background-color: #303f9f; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(63, 81, 181, 0.3); }
+
+</style>
