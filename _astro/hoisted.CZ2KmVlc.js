@@ -1,0 +1,12 @@
+import{o as p,b as h,c as i,d as r,i as l,q as f,h as g,f as E}from"./client.02t19jQd.js";const C=document.getElementById("contracts-list"),D=document.getElementById("loader"),m=document.getElementById("no-data"),u=t=>t.toLocaleString("ar-EG",{style:"currency",currency:"EGP"});p(h,t=>{t?b():window.location.href="/admin"});function b(){w(),v(),S()}async function w(){const t=i(r,"contracts"),a=await l(t);document.getElementById("summary-total-contracts").textContent=a.size;const s=i(r,"installments"),n=await l(s);let o=0,e=0;n.forEach(d=>{const c=d.data();o+=Number(c.amount||0),c.status==="paid"&&(e+=Number(c.amount||0))}),document.getElementById("summary-total-amount").textContent=u(o),document.getElementById("summary-total-paid").textContent=u(e)}async function v(){try{const t=f(i(r,"contracts"),g("createdAt","desc")),a=await l(t);a.empty?m.style.display="block":a.forEach(s=>{const n=s.data(),o=s.id,e=document.createElement("a");e.href=`/admin/contract-details?id=${o}`,e.className="contract-item",e.innerHTML=`
+                        <div class="item-details">
+                            <div class="item-customer-name">${n.customerName}</div>
+                            <div class="item-sub-details">
+                                <span><strong>رقم الهاتف:</strong> ${n.customerPhone||"غير متوفر"}</span>
+                                <span><strong>نوع الوحدة:</strong> ${n.unitType}</span>
+                                <span><strong>موقع الوحدة:</strong> ${n.unitLocation||"غير متوفر"}</span>
+                                <span><strong>المبلغ الإجمالي:</strong> ${u(n.totalAmount)}</span>
+                            </div>
+                        </div>
+                        <div class="item-arrow">&lsaquo;</div>
+                    `,C.appendChild(e)})}catch(t){console.error("Error fetching contracts: ",t),m.textContent="حدث خطأ أثناء تحميل البيانات.",m.style.display="block"}finally{D.style.display="none"}}async function S(){const t=document.querySelector("#notifications-btn .notification-badge");if(t)try{const a=f(i(r,"installments"),E("status","==","unpaid")),s=await l(a),n=new Date;n.setHours(0,0,0,0);const o=new Date;o.setDate(n.getDate()+7),o.setHours(0,0,0,0);let e=0;s.forEach(d=>{const c=d.data(),y=new Date(c.dueDate);(y<n||y<=o)&&e++}),e>0?(t.textContent=e,t.style.display="inline-block"):t.style.display="none"}catch(a){console.error("Error fetching notification count:",a),t.style.display="none"}}
