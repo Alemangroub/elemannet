@@ -42,33 +42,32 @@ const supervisors = Array.isArray(project.supervisors) ? project.supervisors : [
         </a>
       </header>
 
-      <div class="details-grid">
-        <!-- Project Address Card -->
-        <div class="detail-card address-card">
-            <div class="card-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+      <!-- Redesigned Details Box -->
+      <div class="details-box">
+        <!-- Project Address -->
+        <div class="detail-row">
+            <div class="detail-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             </div>
-            <div class="card-content">
-                <h3>عنوان المشروع</h3>
-                <p>{project.projectAddress || 'غير محدد'}</p>
+            <div class="detail-text">
+                <span class="label">عنوان المشروع:</span>
+                <span class="value">{project.projectAddress || 'غير محدد'}</span>
             </div>
         </div>
 
-        <!-- Supervisors Card -->
-        <div class="detail-card supervisors-card">
-            <div class="card-icon">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        <hr class="row-divider" />
+
+        <!-- Supervisors -->
+        <div class="detail-row">
+            <div class="detail-icon">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             </div>
-            <div class="card-content">
-                <h3>المشرفون</h3>
+            <div class="detail-text">
+                <span class="label">المشرفون:</span>
                 {supervisors.length > 0 ? (
-                    <ul class="supervisors-list">
-                        {supervisors.map(supervisor => (
-                            <li>{supervisor.name}</li>
-                        ))}
-                    </ul>
+                    <span class="value">{supervisors.map(s => s.name).join(', ')}</span>
                 ) : (
-                    <p>لا يوجد مشرفون معينون</p>
+                    <span class="value">لا يوجد</span>
                 )}
             </div>
         </div>
@@ -79,25 +78,77 @@ const supervisors = Array.isArray(project.supervisors) ? project.supervisors : [
 </Layout>
 
 <style>
-  .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; padding: 3rem 1.5rem; min-height: 100vh; }
-  .container { max-width: 1100px; margin: 0 auto; }
-  .page-header { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
-  .page-header h1 { font-size: 2.8rem; color: #3f51b5; font-weight: 900; line-height: 1.3; }
-  .btn-secondary { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; font-size: 1rem; font-weight: 700; background-color: #6c757d; color: #fff; transition: all 0.3s ease; }
+  .project-details-page { 
+      direction: rtl; 
+      font-family: 'Cairo', sans-serif; 
+      background-color: #f4f7f6; 
+      padding: 3rem 1.5rem; 
+  }
+  .container { 
+      max-width: 1100px; 
+      margin: 0 auto; 
+      display: flex; /* Use flexbox */
+      flex-direction: column; /* Stack children vertically */
+      gap: 2rem; /* Create space between header and details box */
+  }
+  .page-header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      padding-bottom: 1.5rem; 
+      border-bottom: 2px solid #e2e8f0; 
+      width: 100%;
+  }
+  .page-header h1 { font-size: 2.5rem; color: #1a202c; font-weight: 800; }
+  .btn-secondary { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; font-size: 0.95rem; font-weight: 700; background-color: #6c757d; color: #fff; transition: all 0.3s ease; flex-shrink: 0; }
   .btn-secondary:hover { background-color: #5a6268; transform: translateY(-2px); }
   
-  .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; }
+  /* Details Box Styling */
+  .details-box { 
+    background-color: #fff; 
+    border-radius: 12px; 
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); 
+    padding: 1.5rem 2rem;
+    border: 1px solid #e2e8f0;
+    width: 100%; /* Ensure it takes full width of the container */
+  }
+
+  .detail-row { 
+    display: flex; 
+    align-items: center; 
+    gap: 1.25rem; 
+  }
+
+  .detail-icon { 
+    color: #3f51b5; 
+    flex-shrink: 0; 
+  }
+
+  .detail-text {
+    font-size: 1.05rem;
+    color: #4a5568;
+  }
   
-  .detail-card { background-color: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); padding: 2rem; display: flex; align-items: flex-start; gap: 1.5rem; }
-  .card-icon { color: #3f51b5; background-color: rgba(63, 81, 181, 0.1); border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
-  .card-content h3 { font-size: 1.4rem; font-weight: 800; color: #333; margin: 0 0 0.5rem; }
-  .card-content p { font-size: 1.1rem; color: #555; margin: 0; line-height: 1.6; }
+  .detail-text .label {
+    font-weight: 700;
+    margin-left: 0.5rem;
+  }
+
+  .detail-text .value {
+    font-weight: 500;
+    color: #1a202c;
+  }
   
-  .supervisors-list { list-style: none; padding: 0; margin: 0; }
-  .supervisors-list li { background-color: #f8f9fa; padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 1.05rem; color: #343a40; border-right: 4px solid #3f51b5; }
+  .row-divider {
+      border: 0;
+      height: 1px;
+      background-color: #e8edf2;
+      margin: 1rem 0;
+  }
   
   @media (max-width: 768px) {
-    .page-header { align-items: stretch; }
-    .page-header h1 { font-size: 2.2rem; }
+    .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; text-align: right; }
+    .details-box { padding: 1rem 1.5rem; }
+    .detail-text { font-size: 1rem; }
   }
 </style>
