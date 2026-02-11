@@ -11,7 +11,7 @@ import Layout from '../../layouts/Layout.astro';
         <h1>إدارة المشروعات</h1>
         <div class="header-actions">
           <a href="/admin" class="btn btn-secondary">العودة للوحة التحكم</a>
-          <button id="show-add-modal-btn" class="btn btn-primary">+ إضافة مشروع جديد</button>
+          <a href="/admin/add-project" class="btn btn-primary">+ إضافة مشروع جديد</a>
         </div>
       </div>
 
@@ -23,10 +23,8 @@ import Layout from '../../layouts/Layout.astro';
             <thead>
               <tr>
                 <th>اسم المشروع</th>
-                <th>موقع المشروع</th>
-                <th>وصف المشروع</th>
-                <th>اسم المشرف</th>
-                <th>البريد الإلكتروني</th>
+                <th>العنوان</th>
+                <th>المشرفون</th>
                 <th>الإجراءات</th>
               </tr>
             </thead>
@@ -38,45 +36,6 @@ import Layout from '../../layouts/Layout.astro';
         <p id="no-projects-message">جاري تحميل المشاريع...</p>
       </div>
 
-    </div>
-
-    <!-- Add Project Modal -->
-    <div id="add-project-modal" class="modal-overlay">
-      <div class="modal-box form-modal-box">
-        <div class="modal-header">
-          <h2>إضافة مشروع جديد</h2>
-          <button id="close-add-modal-btn" class="close-btn">&times;</button>
-        </div>
-        <form id="add-project-form">
-          <div class="form-group">
-            <label for="project-name">اسم المشروع</label>
-            <input type="text" id="project-name" required />
-          </div>
-          <div class="form-group">
-            <label for="project-location">موقع المشروع</label>
-            <input type="text" id="project-location" required />
-          </div>
-          <div class="form-group">
-            <label for="project-description">وصف المشروع</label>
-            <textarea id="project-description" rows="3" required></textarea>
-          </div>
-          <div class="form-group">
-            <label for="project-supervisor">اسم المشرف</label>
-            <input type="text" id="project-supervisor" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="supervisor-email">البريد الإلكتروني للمشرف</label>
-              <input type="email" id="supervisor-email" required />
-            </div>
-            <div class="form-group">
-              <label for="supervisor-password">كلمة السر للمشرف</label>
-              <input type="password" id="supervisor-password" required />
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary">إضافة المشروع</button>
-        </form>
-      </div>
     </div>
 
     <!-- Delete Confirmation Modal -->
@@ -102,14 +61,6 @@ import Layout from '../../layouts/Layout.astro';
   .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; }
   .page-header h1 { font-size: 2.2rem; color: #333; font-weight: 900; }
   .header-actions { display: flex; gap: 1rem; }
-
-  /* Form Inputs */
-  .form-group { margin-bottom: 1.5rem; }
-  .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555; }
-  .form-group input, .form-group textarea { width: 100%; padding: 0.75rem 1rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; transition: border-color 0.3s, box-shadow 0.3s; }
-  .form-group input:focus, .form-group textarea:focus { outline: none; border-color: #3f51b5; box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.2); }
-  .form-row { display: flex; gap: 1.5rem; }
-  .form-row .form-group { flex: 1; }
 
   /* Projects List Container */
   .projects-list-container { background-color: transparent; padding: 0; }
@@ -146,7 +97,6 @@ import Layout from '../../layouts/Layout.astro';
   }
   #projects-table td:first-of-type { border-right: 1px solid #eee; border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
   #projects-table td:last-of-type { border-left: 1px solid #eee; border-top-left-radius: 10px; border-bottom-left-radius: 10px; text-align: center; }
-  #projects-table .description-cell { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #projects-table .project-name-cell { font-weight: 700; font-size: 1.05rem; color: #3f51b5; }
   #no-projects-message { text-align: center; padding: 2rem 0; font-size: 1.1rem; color: #777; }
 
@@ -174,11 +124,6 @@ import Layout from '../../layouts/Layout.astro';
   .modal-overlay.visible { visibility: visible; opacity: 1; }
   .modal-box { background: #fff; padding: 2rem; border-radius: 12px; width: 90%; text-align: right; margin: auto; transform: scale(0.95); transition: transform 0.3s ease; }
   .modal-overlay.visible .modal-box { transform: scale(1); }
-  .form-modal-box { max-width: 600px; }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e0e0e0; }
-  .modal-header h2 { margin: 0; font-size: 1.8rem; font-weight: 800; color: #3f51b5; }
-  .close-btn { background: none; border: none; font-size: 2.2rem; line-height: 1; font-weight: 300; color: #999; cursor: pointer; transition: color 0.2s; padding: 0; }
-  .close-btn:hover { color: #333; }
   .modal-box h3 { font-size: 1.6rem; margin-top: 0; margin-bottom: 1rem; color: #333; text-align: center; }
   .modal-box p { margin-bottom: 2rem; color: #666; text-align: center; }
   .modal-actions { display: flex; justify-content: center; gap: 1rem; }
@@ -238,10 +183,6 @@ import Layout from '../../layouts/Layout.astro';
       color: #3f51b5;
       text-align: left;
     }
-    #projects-table .description-cell {
-      white-space: normal;
-      max-width: 100%;
-    }
   }
 
 </style>
@@ -249,7 +190,7 @@ import Layout from '../../layouts/Layout.astro';
 <script>
   import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db } from '../../firebase/client';
-  import { collection, addDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+  import { collection, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
 
   onAuthStateChanged(auth, (user) => {
     if (!user) { window.location.href = '/admin'; }
@@ -271,45 +212,18 @@ import Layout from '../../layouts/Layout.astro';
       noProjectsMessage.textContent = '';
       projectsList.innerHTML = snapshot.docs.map(doc => {
         const project = doc.data();
+        const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
         return `
           <tr data-id="${doc.id}" data-href="/admin/projects/${doc.id}">
-            <td data-label="اسم المشروع" class="project-name-cell">${project.name || '-'}</td>
-            <td data-label="الموقع">${project.location || '-'}</td>
-            <td data-label="الوصف" class="description-cell" title="${project.description}">${project.description || '-'}</td>
-            <td data-label="المشرف">${project.supervisor || '-'}</td>
-            <td data-label="البريد الإلكتروني">${project.supervisorEmail || '-'}</td>
+            <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
+            <td data-label="العنوان">${project.projectAddress || '-'}</td>
+            <td data-label="المشرفون">${supervisors}</td>
             <td data-label="الإجراءات">
               <button class="btn btn-delete-custom">حذف</button>
             </td>
           </tr>
         `;
       }).join('');
-    }
-  });
-
-  // Modal Logic (unchanged)
-  const addProjectModal = document.getElementById('add-project-modal');
-  const showAddModalBtn = document.getElementById('show-add-modal-btn');
-  const closeAddModalBtn = document.getElementById('close-add-modal-btn');
-  const addProjectForm = document.getElementById('add-project-form');
-
-  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
-  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
-
-  showAddModalBtn.addEventListener('click', () => showModal(addProjectModal));
-  closeAddModalBtn.addEventListener('click', () => hideModal(addProjectModal));
-  addProjectModal.addEventListener('click', (e) => { if (e.target === addProjectModal) hideModal(addProjectModal); });
-
-  addProjectForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const projectData = { name: document.getElementById('project-name').value, location: document.getElementById('project-location').value, description: document.getElementById('project-description').value, supervisor: document.getElementById('project-supervisor').value, supervisorEmail: document.getElementById('supervisor-email').value, supervisorPassword: document.getElementById('supervisor-password').value, createdAt: new Date() };
-    try {
-      await addDoc(projectsCollection, projectData);
-      addProjectForm.reset();
-      hideModal(addProjectModal);
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      alert('حدث خطأ أثناء إضافة المشروع.');
     }
   });
 
@@ -324,6 +238,7 @@ import Layout from '../../layouts/Layout.astro';
     if (!row) return;
 
     if (e.target.classList.contains('btn-delete-custom')) {
+      e.stopPropagation(); // Prevent row click navigation
       projectIdToDelete = row.dataset.id;
       showModal(deleteModal);
     } else {
@@ -333,6 +248,9 @@ import Layout from '../../layouts/Layout.astro';
       }
     }
   });
+  
+  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
 
   function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
   cancelDeleteBtn.addEventListener('click', hideDeleteModal);

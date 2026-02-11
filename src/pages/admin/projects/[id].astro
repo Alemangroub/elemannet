@@ -2,74 +2,75 @@
 import Layout from '../../../layouts/Layout.astro';
 import { db } from "../../../firebase/admin";
 
-// This function is required for Astro's static site generation to find all dynamic routes.
+// Fetches all project IDs at build time to pre-render the pages.
 export async function getStaticPaths() {
     try {
         const projectsSnapshot = await db.collection('projects').get();
         if (projectsSnapshot.empty) {
-            console.warn('⚠️ No projects found in Firestore. The page will not be generated.');
+            console.warn('⚠️ No projects found in Firestore. No project detail pages will be generated.');
             return [];
         }
-        const projects = projectsSnapshot.docs.map(doc => ({
+        return projectsSnapshot.docs.map(doc => ({
             params: { id: doc.id },
             props: { project: { id: doc.id, ...doc.data() } }
         }));
-        return projects;
     } catch (error) {
-        console.error('❌ Critical Error in getStaticPaths while fetching projects ❌', error);
-        // Return an empty array to prevent the build from crashing.
-        // The page will likely 404, which is handled below.
+        console.error('❌ Error in getStaticPaths fetching projects:', error);
         return [];
     }
 }
 
 const { project } = Astro.props;
 
-// If no project data is passed (e.g., build error or invalid ID), redirect to a 404 page.
+// Redirect to a 404 page if project data is missing.
 if (!project) {
-    return Astro.redirect('/admin/404'); // Assuming you have a 404 page for admin
+    return Astro.redirect('/admin/404');
 }
+
+// Ensure supervisors is an array, default to empty if it doesn't exist.
+const supervisors = Array.isArray(project.supervisors) ? project.supervisors : [];
 ---
 
-<Layout title={`تفاصيل مشروع: ${project.name}`}>
+<Layout title={`تفاصيل مشروع: ${project.projectName}`}>
   <main class="project-details-page">
     <div class="container">
 
       <header class="page-header">
-        <h1>تفاصيل المشروع</h1>
+        <h1>{project.projectName || 'اسم المشروع غير متاح'}</h1>
         <a href="/admin/projects" class="btn btn-secondary">
-          &larr; العودة إلى القائمة
+          &larr; العودة إلى قائمة المشاريع
         </a>
       </header>
 
-      <div class="details-container">
-        <div class="project-info">
-          <h2 class="project-name">{project.name}</h2>
-          <p class="project-description">{project.description || 'لا يوجد وصف متاح لهذا المشروع.'}</p>
-          
-          <ul class="details-list">
-            <li>
-              <strong>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                الموقع:
-              </strong>
-              <span>{project.location || 'غير محدد'}</span>
-            </li>
-            <li>
-              <strong>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
-                المشرف:
-              </strong>
-              <span>{project.supervisor || 'غير محدد'}</span>
-            </li>
-            <li>
-              <strong>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
-                بريد المشرف الإلكتروني:
-              </strong>
-              <span>{project.supervisorEmail || 'غير محدد'}</span>
-            </li>
-          </ul>
+      <div class="details-grid">
+        <!-- Project Address Card -->
+        <div class="detail-card address-card">
+            <div class="card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </div>
+            <div class="card-content">
+                <h3>عنوان المشروع</h3>
+                <p>{project.projectAddress || 'غير محدد'}</p>
+            </div>
+        </div>
+
+        <!-- Supervisors Card -->
+        <div class="detail-card supervisors-card">
+            <div class="card-icon">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+            <div class="card-content">
+                <h3>المشرفون</h3>
+                {supervisors.length > 0 ? (
+                    <ul class="supervisors-list">
+                        {supervisors.map(supervisor => (
+                            <li>{supervisor.name}</li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p>لا يوجد مشرفون معينون</p>
+                )}
+            </div>
         </div>
       </div>
 
@@ -78,123 +79,25 @@ if (!project) {
 </Layout>
 
 <style>
-  /* Scoped styles for the Project Details Page */
-  .project-details-page {
-    direction: rtl;
-    font-family: 'Cairo', sans-serif;
-    background-color: #f7f9fc;
-    padding: 3rem 1.5rem;
-    min-height: 100vh;
-  }
+  .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; padding: 3rem 1.5rem; min-height: 100vh; }
+  .container { max-width: 1100px; margin: 0 auto; }
+  .page-header { display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
+  .page-header h1 { font-size: 2.8rem; color: #3f51b5; font-weight: 900; line-height: 1.3; }
+  .btn-secondary { display: inline-block; padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; font-size: 1rem; font-weight: 700; background-color: #6c757d; color: #fff; transition: all 0.3s ease; }
+  .btn-secondary:hover { background-color: #5a6268; transform: translateY(-2px); }
   
-  .container {
-    max-width: 1000px;
-    margin: 0 auto;
-  }
-
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1.5rem;
-    margin-bottom: 2.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #dfe6e9;
-  }
-
-  .page-header h1 {
-    font-size: 2rem;
-    color: #2d3748;
-    font-weight: 800;
-  }
-
-  .btn {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    border-radius: 0.5rem;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 700;
-    text-align: center;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-
-  .btn-secondary {
-    color: #fff;
-    background-color: #6c757d;
-    border-color: #6c757d;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-
-  .btn-secondary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-  }
-
-  .details-container {
-    background-color: #ffffff;
-    border-radius: 1rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-  }
+  .details-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 2rem; }
   
-  .project-info {
-    padding: 3rem;
-  }
-
-  .project-name {
-    font-size: 2.8rem;
-    font-weight: 900;
-    line-height: 1.2;
-    color: #3f51b5; /* Keeping the original brand color */
-    margin-bottom: 1rem;
-  }
-
-  .project-description {
-    font-size: 1.1rem;
-    line-height: 1.7;
-    color: #4a5568;
-    margin-bottom: 3rem;
-    max-width: 65ch; /* Improves readability */
-  }
-
-  .details-list {
-    list-style: none;
-    padding: 2rem 0 0;
-    margin: 0;
-    border-top: 1px solid #edf2f7;
-  }
-
-  .details-list li {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.25rem 0.5rem;
-    font-size: 1.05rem;
-    border-bottom: 1px solid #f7f9fc;
-  }
-
-  .details-list li:last-child {
-    border-bottom: none;
-  }
-
-  .details-list li strong {
-    font-weight: 700;
-    color: #2d3748;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .details-list li .icon {
-    color: #3f51b5;
-    flex-shrink: 0;
-  }
+  .detail-card { background-color: #fff; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.08); padding: 2rem; display: flex; align-items: flex-start; gap: 1.5rem; }
+  .card-icon { color: #3f51b5; background-color: rgba(63, 81, 181, 0.1); border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
+  .card-content h3 { font-size: 1.4rem; font-weight: 800; color: #333; margin: 0 0 0.5rem; }
+  .card-content p { font-size: 1.1rem; color: #555; margin: 0; line-height: 1.6; }
   
-  .details-list li span {
-    color: #718096;
-    font-weight: 500;
+  .supervisors-list { list-style: none; padding: 0; margin: 0; }
+  .supervisors-list li { background-color: #f8f9fa; padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; font-size: 1.05rem; color: #343a40; border-right: 4px solid #3f51b5; }
+  
+  @media (max-width: 768px) {
+    .page-header { align-items: stretch; }
+    .page-header h1 { font-size: 2.2rem; }
   }
 </style>
