@@ -1,4 +1,4 @@
-import{e as v,c as b,d as y}from"./client.02t19jQd.js";const t=document.getElementById("add-project-form"),E=document.getElementById("add-person-btn"),i=document.getElementById("additional-persons-container"),o=document.getElementById("submit-btn");let a=2;E.addEventListener("click",()=>{a++;const e=document.createElement("div");e.className="person-group dynamic",e.innerHTML=`
+import{e as v,c as b,d as y}from"./client.0jORRY1u.js";const t=document.getElementById("add-project-form"),E=document.getElementById("add-person-btn"),i=document.getElementById("additional-persons-container"),o=document.getElementById("submit-btn");let a=2;E.addEventListener("click",()=>{a++;const e=document.createElement("div");e.className="person-group dynamic",e.innerHTML=`
         <div class="form-group">
             <label>الاسم (الشخص ${a})</label>
             <input type="text" name="personName">
