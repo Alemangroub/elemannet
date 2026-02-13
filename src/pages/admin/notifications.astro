@@ -189,7 +189,7 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
     import { onAuthStateChanged } from 'firebase/auth';
-    import { collection, getDocs, query, where } from 'firebase/firestore';
+    import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
 
     const loader = document.getElementById('loader');
@@ -202,10 +202,16 @@ import Layout from '../../layouts/Layout.astro';
     const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
 
     // --- Auth Check ---
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // User is logged in, fetch the notification data
-            fetchNotifications();
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            } else {
+                // User is logged in and not a supervisor, fetch the notification data
+                fetchNotifications();
+            }
         } else {
             // No user, redirect to login
             window.location.href = '/admin';

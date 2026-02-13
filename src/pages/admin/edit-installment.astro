@@ -123,18 +123,24 @@ import Layout from '../../layouts/Layout.astro';
 
     onAuthStateChanged(auth, async (user) => {
         if (user) {
-            const urlParams = new URLSearchParams(window.location.search);
-            installmentId = urlParams.get('id');
-            contractId = urlParams.get('contractId'); 
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            } else {
+                const urlParams = new URLSearchParams(window.location.search);
+                installmentId = urlParams.get('id');
+                contractId = urlParams.get('contractId'); 
 
-            if (!installmentId || !contractId) {
-                displayError("لم يتم العثور على معرف القسط أو العقد. يرجى العودة والمحاولة مرة أخرى.");
-                return;
+                if (!installmentId || !contractId) {
+                    displayError("لم يتم العثور على معرف القسط أو العقد. يرجى العودة والمحاولة مرة أخرى.");
+                    return;
+                }
+                
+                cancelBtn.href = `/admin/contract-details?id=${contractId}`;
+                installmentRef = doc(db, "installments", installmentId);
+                await loadInstallmentData();
             }
-            
-            cancelBtn.href = `/admin/contract-details?id=${contractId}`;
-            installmentRef = doc(db, "installments", installmentId);
-            await loadInstallmentData();
         } else {
             window.location.href = '/admin';
         }

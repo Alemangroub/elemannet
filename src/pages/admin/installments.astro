@@ -214,7 +214,7 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
     import { onAuthStateChanged } from 'firebase/auth';
-    import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+    import { collection, getDocs, doc, getDoc, query, orderBy, where } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
 
     const contractsList = document.getElementById('contracts-list');
@@ -224,12 +224,16 @@ import Layout from '../../layouts/Layout.astro';
     const formatCurrency = (num) => num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
 
     // --- Auth Check ---
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         if (user) {
-            // User is logged in, initialize the dashboard
-            initializeDashboard();
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            } else {
+                initializeDashboard();
+            }
         } else {
-            // User is not logged in, redirect to login page
             window.location.href = '/admin';
         }
     });

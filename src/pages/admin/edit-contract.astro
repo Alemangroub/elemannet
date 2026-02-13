@@ -77,8 +77,16 @@ import Layout from '../../layouts/Layout.astro';
     import { auth, db } from '../../firebase/client';
 
     // Auth Check: Redirect if user is not logged in
-    onAuthStateChanged(auth, (user) => {
-        if (!user) {
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            } else {
+                loadContractData();
+            }
+        } else {
             window.location.href = '/admin';
         }
     });
@@ -235,5 +243,5 @@ import Layout from '../../layouts/Layout.astro';
         }
     });
 
-    document.addEventListener('DOMContentLoaded', loadContractData);
+    // document.addEventListener('DOMContentLoaded', loadContractData);
 </script>

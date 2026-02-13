@@ -190,10 +190,18 @@ import Layout from '../../layouts/Layout.astro';
 <script>
   import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db } from '../../firebase/client';
-  import { collection, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+  import { collection, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 
-  onAuthStateChanged(auth, (user) => {
-    if (!user) { window.location.href = '/admin'; }
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+            window.location.href = '/dashboard';
+        }
+    } else {
+        window.location.href = '/admin';
+    }
   });
 
   const projectsCollection = collection(db, 'projects');

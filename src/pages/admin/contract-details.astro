@@ -121,8 +121,18 @@ import Layout from '../../layouts/Layout.astro';
     import { auth, db } from '../../firebase/client';
 
     // Auth check
-    onAuthStateChanged(auth, (user) => {
-        if (!user) { window.location.href = '/admin'; }
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            } else {
+                fetchAndDisplayContractDetails();
+            }
+        } else {
+            window.location.href = '/admin';
+        }
     });
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -276,5 +286,5 @@ import Layout from '../../layouts/Layout.astro';
         window.print();
     });
 
-    fetchAndDisplayContractDetails();
+    //fetchAndDisplayContractDetails();
 </script>

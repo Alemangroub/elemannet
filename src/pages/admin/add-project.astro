@@ -52,8 +52,27 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { db } from '../../firebase/client.ts';
-  import { collection, addDoc, getDocs, query, where } from "firebase/firestore";
+  import { onAuthStateChanged } from 'firebase/auth';
+  import { auth, db } from '../../firebase/client.ts';
+  import { collection, addDoc, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+
+  // Auth Check
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        // Redirect if the user is a supervisor
+        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+            window.location.href = '/dashboard';
+        } else {
+            // User is an admin, proceed to load page content
+            await fetchAndPrepareSupervisors();
+        }
+    } else {
+        // No user is signed in, redirect to login page.
+        window.location.href = '/admin';
+    }
+  });
 
   const form = document.getElementById('add-project-form');
   const addPersonBtn = document.getElementById('add-person-btn');
@@ -79,8 +98,8 @@ import Layout from '../../layouts/Layout.astro';
     return select;
   }
 
-  // Fetch supervisors on page load
-  document.addEventListener('DOMContentLoaded', async () => {
+  // REPLACES DOMContentLoaded: Fetch supervisors and prepare the form
+  async function fetchAndPrepareSupervisors() {
     const allSelects = document.querySelectorAll('.supervisor-select');
     try {
         const q = query(collection(db, "users"), where("role", "==", "supervisor"));
@@ -102,7 +121,7 @@ import Layout from '../../layouts/Layout.astro';
             select.innerHTML = '<option value="" disabled selected>خطأ في تحميل المشرفين</option>';
         });
     }
-  });
+  }
 
 
   addPersonBtn.addEventListener('click', () => {

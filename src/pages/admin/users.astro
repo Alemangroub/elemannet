@@ -121,12 +121,20 @@ import Layout from '../../layouts/Layout.astro';
   import { auth, db, firebaseConfig } from '../../firebase/client';
   import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
   import { initializeApp, deleteApp } from 'firebase/app';
-  import { collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy } from 'firebase/firestore';
+  import { collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 
   let adminUser = null;
-  onAuthStateChanged(auth, (user) => {
-    if (user) adminUser = user;
-    else window.location.href = '/admin';
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        adminUser = user;
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+            window.location.href = '/dashboard';
+        }
+    } else {
+        window.location.href = '/admin';
+    }
   });
 
   const addUserForm = document.getElementById('add-user-form');

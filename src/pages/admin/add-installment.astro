@@ -158,13 +158,18 @@ import Layout from '../../layouts/Layout.astro';
 
 <script>
     import { onAuthStateChanged } from 'firebase/auth';
-    import { collection, doc, writeBatch } from 'firebase/firestore';
+    import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
 
     // Auth check to protect the page
-    onAuthStateChanged(auth, (user) => {
-        if (!user) {
-            // If no user is logged in, redirect to the admin login page.
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+                window.location.href = '/dashboard';
+            }
+        } else {
             window.location.href = '/admin';
         }
     });
