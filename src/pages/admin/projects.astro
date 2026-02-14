@@ -49,6 +49,47 @@ import Layout from '../../layouts/Layout.astro';
         </div>
       </div>
     </div>
+
+    <!-- Edit Project Modal -->
+    <div id="edit-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تعديل المشروع</h3>
+        <form id="edit-form">
+          <div class="form-group">
+            <label for="edit-project-name">اسم المشروع</label>
+            <input type="text" id="edit-project-name" required>
+          </div>
+          <div class="form-group">
+            <label for="edit-project-address">عنوان المشروع</label>
+            <input type="text" id="edit-project-address">
+          </div>
+          
+          <!-- Supervisors Management -->
+          <div class="form-group">
+            <label>المشرفون الحاليون</label>
+            <div id="current-supervisors-list" class="supervisors-list">
+              <!-- Current supervisors will be listed here -->
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="add-supervisor-select">إضافة مشرف جديد</label>
+            <div class="add-supervisor-wrapper">
+                <select id="add-supervisor-select">
+                  <!-- Available supervisors will be loaded here -->
+                </select>
+                <button type="button" id="add-supervisor-btn" class="btn btn-primary btn-small">إضافة</button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="cancel-edit-btn" class="btn btn-secondary">إلغاء</button>
+            <button type="submit" class="btn btn-primary">حفظ التغييرات</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </main>
 </Layout>
 
@@ -75,7 +116,7 @@ import Layout from '../../layouts/Layout.astro';
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     border-radius: 10px;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    cursor: pointer;
+    cursor: default; /* Changed from pointer */
     overflow: hidden; 
   }
   #projects-table tbody tr:hover {
@@ -103,86 +144,60 @@ import Layout from '../../layouts/Layout.astro';
   /* General Button Styles */
   .btn { display: inline-block; padding: 0.7rem 1.3rem; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.95rem; font-weight: 700; transition: all 0.2s ease-in-out; text-align: center; border: 1px solid transparent; cursor: pointer; }
   .btn:hover { transform: translateY(-2px); }
+  .btn.btn-small { padding: 0.5rem 1rem; font-size: 0.85rem; }
   .btn-primary { background-color: #3f51b5; border-color: #3f51b5; }
   .btn-primary:hover { background-color: #303f9f; }
   .btn-secondary { background-color: #6c757d; border-color: #6c757d; }
   .btn-secondary:hover { background-color: #5a6268; }
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
-  .btn-delete-custom {
+  .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; }
+  .btn-delete-custom, .btn-edit-custom {
       background-color: transparent;
-      color: #d9534f;
-      border: 1px solid #d9534f;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
       border-radius: 6px;
   }
+  .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
+  .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
+  .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
 
   /* Modal Styles */
-  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; }
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
   .modal-overlay.visible { visibility: visible; opacity: 1; }
-  .modal-box { background: #fff; padding: 2rem; border-radius: 12px; width: 90%; text-align: right; margin: auto; transform: scale(0.95); transition: transform 0.3s ease; }
+  .modal-box { background: #fff; padding: 2.5rem; border-radius: 12px; width: 100%; max-width: 550px; text-align: right; margin: auto; transform: scale(0.95); transition: transform 0.3s ease; }
   .modal-overlay.visible .modal-box { transform: scale(1); }
-  .modal-box h3 { font-size: 1.6rem; margin-top: 0; margin-bottom: 1rem; color: #333; text-align: center; }
+  .modal-box h3 { font-size: 1.8rem; margin-top: 0; margin-bottom: 2rem; color: #333; text-align: center; font-weight: 800; }
   .modal-box p { margin-bottom: 2rem; color: #666; text-align: center; }
-  .modal-actions { display: flex; justify-content: center; gap: 1rem; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; }
   .modal-actions .btn { min-width: 120px; }
+
+  /* Edit Form Styles */
+  #edit-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .form-group { display: flex; flex-direction: column; }
+  .form-group label { font-weight: 700; color: #555; margin-bottom: 0.5rem; font-size: 1rem; }
+  .form-group input, .form-group select { padding: 0.8rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; width: 100%; }
+
+  /* Supervisors Management Styles */
+  .supervisors-list { border: 1px solid #ddd; border-radius: 8px; padding: 0.75rem; min-height: 50px; max-height: 150px; overflow-y: auto; }
+  .supervisor-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background-color: #f9f9f9; border-radius: 6px; margin-bottom: 0.5rem; }
+  .supervisor-item:last-child { margin-bottom: 0; }
+  .btn-delete-supervisor { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 0.2rem 0.6rem; font-size: 0.8rem; border-radius: 4px; cursor: pointer; }
+  .btn-delete-supervisor:hover { background: #ef4444; color: white; }
+  .add-supervisor-wrapper { display: flex; gap: 0.5rem; }
 
   /* Responsive Styles for Mobile */
   @media (max-width: 768px) {
-    .page-header {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 1rem;
-    }
-    .header-actions {
-      flex-direction: column;
-    }
-    #projects-table thead {
-      display: none; /* Hide headers on mobile */
-    }
-    #projects-table, #projects-table tbody, #projects-table tr, #projects-table td {
-      display: block;
-      width: 100%;
-    }
-    #projects-table tr {
-      margin-bottom: 1rem;
-      border: 1px solid #e0e0e0;
-      border-radius: 10px;
-      padding: 0;
-    }
-    #projects-table td {
-      text-align: right;
-      padding-left: 50%;
-      position: relative;
-      border: none;
-      border-bottom: 1px solid #f0f0f0;
-      padding-top: 1rem;
-      padding-bottom: 1rem;
-    }
-    #projects-table td:first-of-type, #projects-table td:last-of-type {
-        border-radius: 0;
-    }
-    #projects-table td:last-of-type {
-      border-bottom: none;
-      padding-top: 1.5rem;
-      padding-bottom: 1.5rem;
-      text-align: center;
-      background-color: #f9f9f9;
-      border-bottom-left-radius: 10px;
-      border-bottom-right-radius: 10px;
-    }
-    #projects-table td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 1rem;
-      width: 40%;
-      padding-right: 10px;
-      font-weight: 700;
-      color: #3f51b5;
-      text-align: left;
-    }
+    .page-header { flex-direction: column; align-items: stretch; gap: 1rem; }
+    .header-actions { flex-direction: column; }
+    #projects-table thead { display: none; }
+    #projects-table, #projects-table tbody, #projects-table tr, #projects-table td { display: block; width: 100%; }
+    #projects-table tr { margin-bottom: 1rem; border: 1px solid #e0e0e0; border-radius: 10px; padding: 0; }
+    #projects-table td { text-align: right; padding-left: 50%; position: relative; border: none; border-bottom: 1px solid #f0f0f0; padding-top: 1rem; padding-bottom: 1rem; }
+    #projects-table td:first-of-type, #projects-table td:last-of-type { border-radius: 0; }
+    #projects-table td:last-of-type { border-bottom: none; padding-top: 1.5rem; padding-bottom: 1.5rem; text-align: center; background-color: #f9f9f9; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+    #projects-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; color: #3f51b5; text-align: left; }
   }
 
 </style>
@@ -190,8 +205,9 @@ import Layout from '../../layouts/Layout.astro';
 <script>
   import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db } from '../../firebase/client';
-  import { collection, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
+  import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
+  // --- AUTH CHECK ---
   onAuthStateChanged(auth, async (user) => {
     if (user) {
         const userDocRef = doc(db, "users", user.uid);
@@ -204,29 +220,49 @@ import Layout from '../../layouts/Layout.astro';
     }
   });
 
-  const projectsCollection = collection(db, 'projects');
-  const projectsQuery = query(projectsCollection, orderBy('createdAt', 'desc'));
-
+  // --- DOM ELEMENTS ---
   const projectsList = document.getElementById('projects-list');
   const noProjectsMessage = document.getElementById('no-projects-message');
   const tableWrapper = document.querySelector('.table-wrapper');
+  // Delete Modal
+  const deleteModal = document.getElementById('delete-modal');
+  const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+  const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+  let projectIdToDelete = null;
+  // Edit Modal
+  const editModal = document.getElementById('edit-modal');
+  const editForm = document.getElementById('edit-form');
+  const cancelEditBtn = document.getElementById('cancel-edit-btn');
+  const projectNameInput = document.getElementById('edit-project-name');
+  const projectAddressInput = document.getElementById('edit-project-address');
+  const currentSupervisorsList = document.getElementById('current-supervisors-list');
+  const addSupervisorSelect = document.getElementById('add-supervisor-select');
+  const addSupervisorBtn = document.getElementById('add-supervisor-btn');
+  let projectIdToEdit = null;
+  let allSupervisors = [];
 
+  // --- DATA FETCHING & RENDERING ---
+  async function fetchSupervisors() {
+    const q = query(collection(db, "users"), where("role", "==", "supervisor"));
+    const querySnapshot = await getDocs(q);
+    allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
+  }
+
+  const projectsQuery = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
   onSnapshot(projectsQuery, (snapshot) => {
-    if (snapshot.empty) {
-      tableWrapper.style.display = 'none';
-      noProjectsMessage.textContent = 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.';
-    } else {
-      tableWrapper.style.display = '';
-      noProjectsMessage.textContent = '';
+    tableWrapper.style.display = snapshot.empty ? 'none' : '';
+    noProjectsMessage.textContent = snapshot.empty ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
+    if (projectsList) {
       projectsList.innerHTML = snapshot.docs.map(doc => {
         const project = doc.data();
         const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
         return `
-          <tr data-id="${doc.id}" data-href="/admin/projects/${doc.id}">
+          <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
             <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
             <td data-label="العنوان">${project.projectAddress || '-'}</td>
             <td data-label="المشرفون">${supervisors}</td>
-            <td data-label="الإجراءات">
+            <td data-label="الإجراءات" class="btn-action-cell">
+              <button class="btn btn-edit-custom">تعديل</button>
               <button class="btn btn-delete-custom">حذف</button>
             </td>
           </tr>
@@ -235,40 +271,120 @@ import Layout from '../../layouts/Layout.astro';
     }
   });
 
-  // Delete / Navigate Logic
-  const deleteModal = document.getElementById('delete-modal');
-  const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-  const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-  let projectIdToDelete = null;
+  // --- MODAL VISIBILITY ---
+  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
 
+  // --- GENERAL EVENT LISTENER ---
   projectsList.addEventListener('click', (e) => {
     const row = e.target.closest('tr');
     if (!row) return;
 
     if (e.target.classList.contains('btn-delete-custom')) {
-      e.stopPropagation(); // Prevent row click navigation
+      e.stopPropagation();
       projectIdToDelete = row.dataset.id;
       showModal(deleteModal);
-    } else {
-      const href = row.dataset.href;
-      if (href) {
-        window.location.href = href;
-      }
+    } else if (e.target.classList.contains('btn-edit-custom')) {
+      e.stopPropagation();
+      projectIdToEdit = row.dataset.id;
+      const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
+      openEditModal(projectData);
     }
   });
-  
-  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
-  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
 
+  // --- DELETE PROJECT LOGIC ---
   function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
   cancelDeleteBtn.addEventListener('click', hideDeleteModal);
   deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideDeleteModal(); });
-
   confirmDeleteBtn.addEventListener('click', async () => {
     if (projectIdToDelete) {
       try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
+      hideDeleteModal();
     }
-    hideDeleteModal();
   });
+
+  // --- EDIT PROJECT LOGIC ---
+  function openEditModal(project) {
+    projectNameInput.value = project.projectName || '';
+    projectAddressInput.value = project.projectAddress || '';
+    
+    const currentSupervisorIds = project.supervisors ? project.supervisors.map(s => s.id) : [];
+    
+    // Populate current supervisors list
+    currentSupervisorsList.innerHTML = '';
+    (project.supervisors || []).forEach(supervisor => {
+        currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
+    });
+
+    // Populate the dropdown with available (unassigned) supervisors
+    updateAddSupervisorDropdown();
+    showModal(editModal);
+  }
+
+  function createSupervisorItemHTML(id, name) {
+      return `<div class="supervisor-item" data-id="${id}">
+                <span>${name}</span>
+                <button type="button" class="btn-delete-supervisor">حذف</button>
+              </div>`;
+  }
+
+  function updateAddSupervisorDropdown() {
+    const currentIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
+    const availableSupervisors = allSupervisors.filter(s => !currentIds.includes(s.id));
+    addSupervisorSelect.innerHTML = '<option value="">اختر مشرفًا...</option>' + 
+                                   availableSupervisors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  // Handle adding a supervisor
+  addSupervisorBtn.addEventListener('click', () => {
+      const selectedId = addSupervisorSelect.value;
+      if (!selectedId) return;
+      const supervisor = allSupervisors.find(s => s.id === selectedId);
+      if (supervisor) {
+          currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
+          updateAddSupervisorDropdown();
+      }
+  });
+
+  // Handle deleting a supervisor from the list
+  currentSupervisorsList.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-delete-supervisor')) {
+          e.target.closest('.supervisor-item').remove();
+          updateAddSupervisorDropdown();
+      }
+  });
+
+  function hideEditModal() { hideModal(editModal); projectIdToEdit = null; editForm.reset(); currentSupervisorsList.innerHTML = ''; }
+  cancelEditBtn.addEventListener('click', hideEditModal);
+  editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!projectIdToEdit) return;
+
+    const finalSupervisorItems = Array.from(currentSupervisorsList.children);
+    const finalSupervisors = finalSupervisorItems.map(item => {
+        const id = item.dataset.id;
+        const name = allSupervisors.find(s => s.id === id).name;
+        return { id, name };
+    });
+
+    const updatedData = {
+      projectName: projectNameInput.value,
+      projectAddress: projectAddressInput.value,
+      supervisors: finalSupervisors,
+      supervisorIds: finalSupervisors.map(s => s.id)
+    };
+
+    try {
+      const projectRef = doc(db, 'projects', projectIdToEdit);
+      await updateDoc(projectRef, updatedData);
+    } catch (error) { console.error("Error updating project: ", error); alert('حدث خطأ أثناء تحديث المشروع.'); }
+
+    hideEditModal();
+  });
+
+  // --- INITIALIZATION ---
+  fetchSupervisors(); // Fetch supervisors as soon as the page loads
 
 </script>
