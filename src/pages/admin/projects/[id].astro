@@ -7,45 +7,74 @@ export const prerender = false;
 
 const { id } = Astro.params;
 let project = null;
-let reports = [];
+let dailyReports = [];
+let expenseReports = [];
 
-// Fetch all project and report data from Firestore.
+// Helper function to format Firestore Timestamps
+const formatTimestamp = (timestamp) => {
+    if (!timestamp || !timestamp.toDate) return 'تاريخ غير متوفر';
+    return timestamp.toDate().toLocaleDateString('ar-EG', { 
+        day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' 
+    });
+};
+
+// Fetch all project, report, and expense data from Firestore.
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
 
     if (projectDoc.exists) {
         const projectData = projectDoc.data();
+        
+        // Fetch supervisor names
+        let supervisorNames = [];
+        if (Array.isArray(projectData.supervisorIds) && projectData.supervisorIds.length > 0) {
+            const supervisorDocs = await Promise.all(projectData.supervisorIds.map(sid => db.collection('users').doc(sid).get()));
+            supervisorNames = supervisorDocs.map(doc => doc.exists ? doc.data().name : 'مشرف محذوف');
+        }
+
         project = { 
             id: projectDoc.id, 
             ...projectData,
-            // Ensure supervisors is an array of names. If not, default to an empty array.
-            supervisors: Array.isArray(projectData.supervisors) ? projectData.supervisors.map(s => s.name) : [],
+            supervisors: supervisorNames,
         };
 
-        // Fetch all reports for this project, ordered by the newest first.
-        const reportsSnapshot = await db.collection('reports')
+        // Fetch all DAILY REPORTS for this project, ordered by the newest first.
+        const dailyReportsSnapshot = await db.collection('daily_reports')
                                         .where('projectId', '==', id)
                                         .orderBy('createdAt', 'desc')
                                         .get();
         
-        reports = reportsSnapshot.docs.map(doc => {
+        dailyReports = dailyReportsSnapshot.docs.map(doc => {
             const data = doc.data();
             return {
                 id: doc.id,
                 ...data,
-                // Format the Firestore timestamp into a readable string for the user.
-                createdAt: data.createdAt.toDate().toLocaleDateString('ar-EG', { 
-                    day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit' 
-                }),
+                createdAt: formatTimestamp(data.createdAt),
             };
         });
+
+        // Fetch all EXPENSE REPORTS for this project, ordered by the newest first.
+        const expenseReportsSnapshot = await db.collection('daily_expenses')
+                                           .where('projectId', '==', id)
+                                           .orderBy('createdAt', 'desc')
+                                           .get();
+
+        expenseReports = expenseReportsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                createdAt: formatTimestamp(data.createdAt),
+                // Convert the expenses object into an array for easier mapping
+                expenseItems: Object.entries(data.expenses || {}).map(([key, value]) => ({ name: key.replace(/_/g, ' '), amount: value })),
+            };
+        });
+
     } else {
-        // If no project is found with the given ID, redirect to the 404 page.
         return Astro.redirect('/404');
     }
 } catch (error) {
     console.error("Error fetching project data:", error);
-    // In case of an error, we log it and the page will render with empty data.
 }
 ---
 
@@ -55,7 +84,7 @@ try {
             <header class="page-header">
                 <div>
                     <h1>تفاصيل المشروع</h1>
-                    <p class="page-subtitle">عرض تفصيلي للمشروع وسجل التقارير المقدمة.</p>
+                    <p class="page-subtitle">عرض تفصيلي للمشروع وسجلات التقارير والمصروفات.</p>
                 </div>
                 <a href="/admin/projects" class="back-link">&larr; العودة إلى المشاريع</a>
             </header>
@@ -63,63 +92,86 @@ try {
             <!-- Project Info Card -->
             <section class="project-info-card">
                  <div class="info-item">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                    <div>
-                        <strong>اسم المشروع:</strong>
-                        <span>{project.projectName}</span>
-                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                    <div><strong>اسم المشروع:</strong><span>{project.projectName}</span></div>
                 </div>
                 <div class="info-item">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
-                    <div>
-                        <strong>الموقع:</strong>
-                        <span>{project.projectAddress || 'غير محدد'}</span>
-                    </div>
+                    <div><strong>الموقع:</strong><span>{project.projectAddress || 'غير محدد'}</span></div>
                 </div>
                 <div class="info-item">
                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    <div>
-                        <strong>المشرفون:</strong>
-                        <span>{project.supervisors.join(', ') || 'لم يتم التعيين'}</span>
-                    </div>
+                    <div><strong>المشرفون:</strong><span>{project.supervisors.join(', ') || 'لم يتم التعيين'}</span></div>
                 </div>
             </section>
 
-            <!-- Reports List Section -->
+            <!-- Expense Reports Section -->
             <section class="reports-section">
-                <h2>سجل التقارير ({reports.length})</h2>
-                {reports.length === 0 ? (
-                    <div class="no-reports-card">
-                        <p>لم يتم تقديم أي تقارير لهذا المشروع حتى الآن.</p>
-                    </div>
+                <h2>سجل تقارير المصروفات اليوميه ({expenseReports.length})</h2>
+                {expenseReports.length === 0 ? (
+                    <div class="no-items-card"><p>لم يتم تقديم أي تقارير مصروفات لهذا المشروع حتى الآن.</p></div>
                 ) : (
-                    <div class="reports-list">
-                        {reports.map(report => (
-                            <article class="report-card">
-                                <div class="report-header">
-                                    <div class="author-info">بواسطة: {report.supervisorName}</div>
-                                    <time class="report-date">{report.createdAt}</time>
-                                </div>
-                                <div class="report-body">
-                                    <p>{report.reportText}</p>
+                    <div class="list-container">
+                        {expenseReports.map(report => (
+                            <article class="card expense-report-card">
+                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAt}</time></div>
+                                <div class="card-body">
+                                    <div class="expense-details">
+                                        <h4>تفاصيل المصروفات:</h4>
+                                        <ul class="expense-list">
+                                            {report.expenseItems.map(item => (
+                                                <li><span>{item.name}</span><span class="amount">{item.amount.toLocaleString('ar-EG')} ج.م</span></li>
+                                            ))}
+                                        </ul>
+                                        <div class="total-amount">
+                                            <strong>الإجمالي:</strong>
+                                            <span>{report.totalAmount.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' })}</span>
+                                        </div>
+                                    </div>
+                                    {report.notes && <div class="notes-section"><h4>ملاحظات:</h4><p>{report.notes}</p></div>}
                                     {report.imageUrls && report.imageUrls.length > 0 && (
-                                        <div class="report-images">
-                                            <h3 class="images-title">المرفقات:</h3>
+                                        <div class="attachments">
+                                            <h3 class="attachments-title">الفواتير والصور المرفقة:</h3>
                                             <div class="image-gallery">
                                                 {report.imageUrls.map(url => (
                                                     <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
-                                                        <img src={url} alt="صورة مرفقة بالتقرير" loading="lazy" />
+                                                        <img src={url} alt="صورة مرفقة" loading="lazy" />
                                                     </a>
                                                 ))}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div class="report-footer">
-                                    <div class="progress-bar-container">
-                                        <div class="progress-bar" style={`width: ${report.progressPercentage}%`}></div>
-                                    </div>
-                                    <span class="progress-text">نسبة الإنجاز: {report.progressPercentage}%</span>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <!-- Daily Reports Section -->
+            <section class="reports-section">
+                <h2>سجل التقارير اليوميه ({dailyReports.length})</h2>
+                {dailyReports.length === 0 ? (
+                    <div class="no-items-card"><p>لم يتم تقديم أي تقارير يومية لهذا المشروع حتى الآن.</p></div>
+                ) : (
+                    <div class="list-container">
+                        {dailyReports.map(report => (
+                            <article class="card daily-report-card">
+                                <div class="card-header"><span>بواسطة: {report.supervisorName}</span><time>{report.createdAt}</time></div>
+                                <div class="card-body">
+                                    <p>{report.reportText}</p>
+                                    {report.imageUrls && report.imageUrls.length > 0 && (
+                                        <div class="attachments">
+                                            <h3 class="attachments-title">المرفقات:</h3>
+                                            <div class="image-gallery">
+                                                {report.imageUrls.map(url => (
+                                                    <a href={url} target="_blank" rel="noopener noreferrer" class="image-thumbnail">
+                                                        <img src={url} alt="صورة مرفقة" loading="lazy" />
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </article>
                         ))}
@@ -139,7 +191,6 @@ try {
     if (user) {
       const userDocRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userDocRef);
-      
       if (userDoc.exists() && userDoc.data().role === 'supervisor') {
         window.location.href = '/dashboard';
       }
@@ -150,41 +201,47 @@ try {
 </script>
 
 <style>
+    :root { --primary-color: #007bff; --border-color: #e9ecef; --card-shadow: 0 4px 15px rgba(0,0,0,0.06); }
     .reports-display-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
     .container { max-width: 1100px; margin: 0 auto; }
 
-    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #dee2e6; padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
-    .page-header h1 { font-size: 2.25rem; font-weight: 800; color: #212529; margin: 0; }
-    .page-subtitle { font-size: 1rem; color: #6c757d; margin: 0.25rem 0 0 0; }
-    .back-link { color: #007bff; font-weight: 600; text-decoration: none; transition: all 0.2s; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; border: 1px solid #d1e7fd; }
-    .back-link:hover { background-color: #d1e7fd; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 1.5rem; margin-bottom: 2.5rem; }
+    h1 { font-size: 2.25rem; font-weight: 800; }
+    .page-subtitle { color: #6c757d; }
+    .back-link { color: var(--primary-color); font-weight: 600; text-decoration: none; background-color: #e7f3ff; padding: 0.6rem 1rem; border-radius: 8px; }
 
-    .project-info-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.06); border: 1px solid #e9ecef; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.75rem; margin-bottom: 2.5rem; }
+    .project-info-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; padding: 1.75rem; margin-bottom: 2.5rem; }
     .info-item { display: flex; align-items: center; gap: 1rem; }
-    .info-item svg { color: #007bff; width: 28px; height: 28px; flex-shrink: 0; }
+    .info-item svg { color: var(--primary-color); width: 28px; height: 28px; }
     .info-item div { display: flex; flex-direction: column; }
-    .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; margin-bottom: 0.1rem; }
-    .info-item span { font-weight: 600; font-size: 1.1rem; color: #343a40; }
+    .info-item strong { font-weight: 700; font-size: 0.9rem; color: #6c757d; }
+    .info-item span { font-weight: 600; font-size: 1.1rem; }
 
-    .reports-section h2 { font-size: 1.75rem; font-weight: 700; color: #343a40; margin-bottom: 1.5rem; }
-    .no-reports-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
-    .reports-list { display: flex; flex-direction: column; gap: 1.75rem; }
+    .reports-section { margin-bottom: 3rem; }
+    .reports-section h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 1.5rem; }
+    .no-items-card { background: #fff; border: 1px dashed #ced4da; border-radius: 12px; padding: 3rem; text-align: center; color: #6c757d; }
+    .list-container { display: flex; flex-direction: column; gap: 1.75rem; }
 
-    .report-card { background: #fff; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.07); border: 1px solid #e9ecef; overflow: hidden; }
-    .report-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid #e9ecef; }
-    .author-info { font-weight: 600; color: #495057; }
-    .report-date { font-size: 0.9rem; color: #6c757d; }
-    .report-body { padding: 1.5rem; line-height: 1.8; color: #343a40; }
-    .report-body p { margin-top: 0; }
-    .report-images { margin-top: 1.5rem; }
-    .images-title { font-size: 1rem; font-weight: 700; color: #495057; margin-bottom: 0.75rem; }
-    .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.75rem; }
-    .image-thumbnail img { width: 100%; height: 80px; object-fit: cover; border-radius: 8px; transition: transform 0.3s ease; }
-    .image-thumbnail:hover img { transform: scale(1.1); }
-    .report-footer { padding: 1rem 1.5rem; background: #f8f9fa; border-top: 1px solid #e9ecef; }
-    .progress-bar-container { background: #e9ecef; border-radius: 99px; height: 12px; overflow: hidden; margin-bottom: 0.5rem; }
-    .progress-bar { background: #28a745; height: 100%; border-radius: 99px; }
-    .progress-text { font-size: 0.9rem; font-weight: 600; color: #218838; text-align: right; }
+    .card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); overflow: hidden; }
+    .card-header { display: flex; justify-content: space-between; padding: 1rem 1.5rem; background: #fdfdff; border-bottom: 1px solid var(--border-color); font-size: 0.9rem; color: #6c757d; }
+    .card-header span { font-weight: 600; }
+    .card-body { padding: 1.5rem; }
+    
+    .daily-report-card p { line-height: 1.8; margin: 0; }
 
-    @media (max-width: 768px) { .reports-display-page { padding: 1.5rem; } .page-header { flex-direction: column; align-items: flex-start; gap: 1rem; } .project-info-card { padding: 1.25rem; grid-template-columns: 1fr; } }
+    .expense-report-card .expense-details h4, .notes-section h4 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+    .expense-list { list-style: none; padding: 0; margin: 0 0 1rem 0; }
+    .expense-list li { display: flex; justify-content: space-between; padding: 0.75rem; border-radius: 6px; }
+    .expense-list li:nth-child(odd) { background-color: #f8f9fa; }
+    .expense-list .amount { font-weight: 700; }
+    .total-amount { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: bold; padding-top: 1rem; border-top: 2px solid var(--primary-color); color: var(--primary-color); }
+    
+    .notes-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); }
+    .notes-section p { line-height: 1.8; margin: 0; color: #495057; }
+
+    .attachments { margin-top: 1.5rem; }
+    .attachments-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .image-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 0.75rem; }
+    .image-thumbnail img { width: 100%; height: 90px; object-fit: cover; border-radius: 8px; transition: transform 0.2s; }
+    .image-thumbnail:hover img { transform: scale(1.05); }
 </style>
