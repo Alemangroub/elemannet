@@ -116,7 +116,7 @@ import Layout from '../../layouts/Layout.astro';
     box-shadow: 0 4px 6px rgba(0,0,0,0.05);
     border-radius: 10px;
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    cursor: default; /* Changed from pointer */
+    cursor: pointer; /* Make row clickable */
     overflow: hidden; 
   }
   #projects-table tbody tr:hover {
@@ -138,7 +138,13 @@ import Layout from '../../layouts/Layout.astro';
   }
   #projects-table td:first-of-type { border-right: 1px solid #eee; border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
   #projects-table td:last-of-type { border-left: 1px solid #eee; border-top-left-radius: 10px; border-bottom-left-radius: 10px; text-align: center; }
-  #projects-table .project-name-cell { font-weight: 700; font-size: 1.05rem; color: #3f51b5; }
+  
+  .project-name-cell { 
+    font-weight: 700; 
+    font-size: 1.05rem; 
+    color: #3f51b5; 
+  }
+
   #no-projects-message { text-align: center; padding: 2rem 0; font-size: 1.1rem; color: #777; }
 
   /* General Button Styles */
@@ -157,6 +163,7 @@ import Layout from '../../layouts/Layout.astro';
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
       border-radius: 6px;
+      cursor: pointer;
   }
   .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
@@ -280,6 +287,7 @@ import Layout from '../../layouts/Layout.astro';
     const row = e.target.closest('tr');
     if (!row) return;
 
+    // If a button was clicked, stop propagation and handle the action
     if (e.target.classList.contains('btn-delete-custom')) {
       e.stopPropagation();
       projectIdToDelete = row.dataset.id;
@@ -289,6 +297,12 @@ import Layout from '../../layouts/Layout.astro';
       projectIdToEdit = row.dataset.id;
       const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
       openEditModal(projectData);
+    } else {
+      // Otherwise, navigate to the project details page
+      const projectId = row.dataset.id;
+      if (projectId) {
+          window.location.href = `/admin/projects/${projectId}`;
+      }
     }
   });
 
@@ -308,15 +322,11 @@ import Layout from '../../layouts/Layout.astro';
     projectNameInput.value = project.projectName || '';
     projectAddressInput.value = project.projectAddress || '';
     
-    const currentSupervisorIds = project.supervisors ? project.supervisors.map(s => s.id) : [];
-    
-    // Populate current supervisors list
     currentSupervisorsList.innerHTML = '';
     (project.supervisors || []).forEach(supervisor => {
         currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
     });
 
-    // Populate the dropdown with available (unassigned) supervisors
     updateAddSupervisorDropdown();
     showModal(editModal);
   }
