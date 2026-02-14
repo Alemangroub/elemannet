@@ -23,66 +23,6 @@ import Layout from '../../layouts/Layout.astro';
 
   </main>
 
-  <!-- Expense Submission Modal -->
-  <div id="expense-modal" class="modal-overlay" style="display: none;">
-    <div class="modal-content">
-      <header class="modal-header">
-        <h2>اضافه مصروفات يوميه</h2>
-        <button id="modal-close-button" class="close-button">&times;</button>
-      </header>
-      <form id="expense-form">
-        
-        <!-- Step 1: Add individual expense items -->
-        <div class="form-section-title">إضافة بند مصروف</div>
-        <div id="add-item-section" class="add-item-container">
-          <div class="form-group">
-            <label for="expense-item-select">اختر البند</label>
-            <select id="expense-item-select">
-              <option value="" disabled selected>-- اختر من القائمة --</option>
-              <option value="buffet_hospitality">بوفيه وضيافه</option>
-              <option value="bricks">طوب</option>
-              <option value="sand">رمله</option>
-              <option value="cement">اسمنت</option>
-              <option value="steel">حديد</option>
-              <option value="labor">عمال</option>
-              <option value="other">أخرى</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="expense-item-amount">المبلغ (ج.م)</label>
-            <input type="number" id="expense-item-amount" placeholder="0.00">
-          </div>
-          <div class="form-group" id="other-description-group" style="display: none;">
-            <label for="expense-item-other-desc">وصف بند 'أخرى'</label>
-            <input type="text" id="expense-item-other-desc" placeholder="يرجى التوضيح">
-          </div>
-          <button type="button" id="add-expense-item-button" class="btn btn-add-item">+ إضافة البند</button>
-        </div>
-
-        <!-- Step 2: Review staged items -->
-        <div id="staged-items-container" style="display: none;">
-          <div class="form-section-title">البنود المضافة</div>
-          <ul id="staged-expenses-list" class="staged-items-list"></ul>
-        </div>
-
-        <!-- Step 3: Add notes and attachments -->
-        <div class="form-section-title">تفاصيل إضافية</div>
-        <div class="form-group">
-          <label for="expense-notes">ملاحظات إضافية (اختياري)</label>
-          <textarea id="expense-notes" rows="3" placeholder="أي تفاصيل لا تندرج تحت البنود..."></textarea>
-        </div>
-        <div class="form-group">
-          <label for="expense-images">إرفاق فواتير أو صور (اختياري)</label>
-          <input type="file" id="expense-images" multiple accept="image/*">
-        </div>
-
-        <!-- Step 4: Submit -->
-        <div id="upload-progress" style="display: none;">جارٍ رفع الملفات...</div>
-        <button type="submit" id="submit-expense-button" class="btn btn-submit">حفظ المصروفات</button>
-      </form>
-    </div>
-  </div>
-
 </Layout>
 
 <script>
@@ -92,9 +32,8 @@ import Layout from '../../layouts/Layout.astro';
   import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 
   // --- Global State ---
-  let currentProjectId = null;
   let currentSupervisor = { uid: null, name: '' };
-  let stagedExpenses = [];
+  let stagedExpenses = {}; // Use an object to store expenses per project
 
   // --- Page Elements ---
   const loadingMessage = document.getElementById('auth-loading-message');
@@ -103,28 +42,6 @@ import Layout from '../../layouts/Layout.astro';
   const projectsList = document.getElementById('projects-list');
   const noProjectsMessage = document.getElementById('no-projects-message');
   const logoutButton = document.getElementById('logout-button');
-
-  // --- Modal & Form Elements ---
-  const expenseModal = document.getElementById('expense-modal');
-  const modalCloseButton = document.getElementById('modal-close-button');
-  const expenseForm = document.getElementById('expense-form');
-  const submitExpenseButton = document.getElementById('submit-expense-button');
-  
-  // Add Item Section
-  const addItemSelect = document.getElementById('expense-item-select');
-  const addItemAmount = document.getElementById('expense-item-amount');
-  const addItemButton = document.getElementById('add-expense-item-button');
-  const otherDescriptionGroup = document.getElementById('other-description-group');
-  const otherDescriptionInput = document.getElementById('expense-item-other-desc');
-
-  // Staged Items Section
-  const stagedItemsContainer = document.getElementById('staged-items-container');
-  const stagedExpensesList = document.getElementById('staged-expenses-list');
-
-  // Details Section
-  const expenseNotes = document.getElementById('expense-notes');
-  const expenseImages = document.getElementById('expense-images');
-  const uploadProgress = document.getElementById('upload-progress');
 
   // --- Authentication & Data Fetching ---
   onAuthStateChanged(auth, async (user) => {
@@ -144,236 +61,323 @@ import Layout from '../../layouts/Layout.astro';
 
   async function fetchAndDisplayProjects(supervisorUid) {
     try {
-        const q = query(collection(db, "projects"), where("supervisorIds", "array-contains", supervisorUid));
-        const querySnapshot = await getDocs(q);
-        const supervisedProjects = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const projectsQuery = query(collection(db, "projects"), where("supervisorIds", "array-contains", supervisorUid));
+        const projectsSnapshot = await getDocs(projectsQuery);
+        const supervisedProjects = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
         if (supervisedProjects.length === 0) {
             noProjectsMessage.style.display = 'block';
-        } else {
-            projectsList.innerHTML = supervisedProjects.map(createProjectCard).join('');
-            addEventListenersToButtons();
+            projectsList.innerHTML = '';
+            return;
         }
+
+        const allSupervisorIds = [...new Set(supervisedProjects.flatMap(p => p.supervisorIds || []))];
+        const supervisorsMap = new Map();
+
+        if (allSupervisorIds.length > 0) {
+            const supervisorDocs = await Promise.all(allSupervisorIds.map(id => getDoc(doc(db, "users", id))));
+            supervisorDocs.forEach(doc => {
+                if (doc.exists()) {
+                    supervisorsMap.set(doc.id, doc.data().name || 'اسم غير معروف');
+                }
+            });
+        }
+
+        const enrichedProjects = supervisedProjects.map(project => ({
+            ...project,
+            supervisorNames: (project.supervisorIds || []).map(id => supervisorsMap.get(id) || 'اسم غير معروف')
+        }));
+
+        noProjectsMessage.style.display = 'none';
+        projectsList.innerHTML = enrichedProjects.map(createProjectCards).join('');
+        initializeProjectForms();
+
     } catch (error) {
         console.error("Error fetching projects: ", error);
         projectsList.innerHTML = '<p class="error-message">حدث خطأ أثناء تحميل المشاريع.</p>';
     }
   }
 
-  function createProjectCard(project) {
-    return `<div class="project-card">
-              <div class="card-details">
-                <div class="card-item"><span class="item-label">اسم المشروع</span><p class="item-value">${project.projectName}</p></div>
-                <div class="card-item"><span class="item-label">عنوان المشروع</span><p class="item-value">${project.projectAddress || 'غير محدد'}</p></div>
-              </div>
-              <div class="card-actions"><button class="btn btn-add-expense" data-project-id="${project.id}">اضافه مصروفات يوميه</button></div>
-            </div>`;
+  function createProjectCards(project) {
+      stagedExpenses[project.id] = [];
+      const supervisorNamesHtml = project.supervisorNames.join(', ');
+
+      return `
+        <div class="project-group" data-project-group-id="${project.id}">
+            <div class="project-card">
+                <div class="card-details">
+                    <div class="card-item"><span class="item-label">اسم المشروع</span><p class="item-value">${project.projectName}</p></div>
+                    <div class="card-item"><span class="item-label">عنوان المشروع</span><p class="item-value">${project.projectAddress || 'غير محدد'}</p></div>
+                    <div class="card-item"><span class="item-label">المشرفون</span><p class="item-value">${supervisorNamesHtml}</p></div>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-action btn-toggle-expense" data-project-id="${project.id}">مصروفات يومية</button>
+                    <button class="btn btn-action btn-toggle-report" data-project-id="${project.id}">تقرير يومي</button>
+                </div>
+            </div>
+
+            <!-- Expense Form Card -->
+            <div class="form-card expense-card" id="expense-form-container-${project.id}" style="display: none;">
+                 <form class="expense-form" data-project-id="${project.id}">
+                    <header class="form-card-header">
+                        <h2>إضافة مصروفات يومية لمشروع: ${project.projectName}</h2>
+                    </header>
+                    <div class="form-section-title">إضافة بند مصروف</div>
+                    <div class="add-item-container">
+                        <div class="form-group"><label>اختر البند</label><select class="expense-item-select"><option value="" disabled selected>-- اختر --</option><option value="buffet_hospitality">بوفيه وضيافه</option><option value="bricks">طوب</option><option value="sand">رمله</option><option value="cement">اسمنت</option><option value="steel">حديد</option><option value="labor">عمال</option><option value="other">أخرى</option></select></div>
+                        <div class="form-group"><label>المبلغ (ج.م)</label><input type="number" class="expense-item-amount" placeholder="0.00"></div>
+                        <div class="form-group other-description-group" style="display: none;"><label>وصف بند 'أخرى'</label><input type="text" class="expense-item-other-desc" placeholder="يرجى التوضيح"></div>
+                        <button type="button" class="btn btn-add-item">+ إضافة البند</button>
+                    </div>
+                    <div class="staged-items-container" style="display: none;"><div class="form-section-title">البنود المضافة</div><ul class="staged-expenses-list"></ul></div>
+                    <div class="form-section-title">تفاصيل إضافية</div>
+                    <div class="form-group"><label>ملاحظات (اختياري)</label><textarea class="expense-notes" rows="3"></textarea></div>
+                    <div class="form-group"><label>إرفاق صور (اختياري)</label><input type="file" class="expense-images" multiple accept="image/*"></div>
+                    <div class="upload-progress" style="display: none;"></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ المصروفات</button><button type="button" class="btn btn-cancel-expense">إلغاء</button></div>
+                </form>
+            </div>
+
+            <!-- Daily Report Form Card -->
+            <div class="form-card report-card" id="report-form-container-${project.id}" style="display: none;">
+                <form class="report-form" data-project-id="${project.id}">
+                    <header class="form-card-header">
+                        <h2>إضافة تقرير يومي لمشروع: ${project.projectName}</h2>
+                    </header>
+                    <div class="form-group"><label for="report-text-${project.id}">نص التقرير</label><textarea id="report-text-${project.id}" class="report-text" rows="6" required placeholder="اكتب هنا تفاصيل سير العمل، المشاكل، التقدم المحرز..."></textarea></div>
+                    <div class="form-group"><label for="report-images-${project.id}">إرفاق صور (اختياري)</label><input type="file" id="report-images-${project.id}" class="report-images" multiple accept="image/*"></div>
+                    <div class="upload-progress" style="display: none;"></div>
+                    <div class="form-actions"><button type="submit" class="btn btn-submit">حفظ التقرير</button><button type="button" class="btn btn-cancel-report">إلغاء</button></div>
+                </form>
+            </div>
+        </div>
+      `;
+  }
+
+  function initializeProjectForms() {
+    document.querySelectorAll('.project-group').forEach(group => {
+        const projectId = group.dataset.projectGroupId;
+        
+        // --- Toggle Buttons --- 
+        const expenseFormContainer = group.querySelector('.expense-card');
+        const reportFormContainer = group.querySelector('.report-card');
+        const toggleExpenseBtn = group.querySelector('.btn-toggle-expense');
+        const toggleReportBtn = group.querySelector('.btn-toggle-report');
+
+        toggleExpenseBtn.addEventListener('click', () => {
+            const isVisible = expenseFormContainer.style.display === 'block';
+            expenseFormContainer.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) reportFormContainer.style.display = 'none'; // Hide other form
+        });
+
+        toggleReportBtn.addEventListener('click', () => {
+            const isVisible = reportFormContainer.style.display === 'block';
+            reportFormContainer.style.display = isVisible ? 'none' : 'block';
+            if (!isVisible) expenseFormContainer.style.display = 'none'; // Hide other form
+        });
+
+        // --- Expense Form Logic ---
+        const expenseForm = group.querySelector('.expense-form');
+        if (expenseForm) {
+            group.querySelector('.btn-cancel-expense').addEventListener('click', () => {
+                expenseFormContainer.style.display = 'none';
+                expenseForm.reset();
+                stagedExpenses[projectId] = [];
+                renderStagedExpenses(projectId, expenseForm);
+            });
+
+            const itemSelect = expenseForm.querySelector('.expense-item-select');
+            const otherDescGroup = expenseForm.querySelector('.other-description-group');
+            itemSelect.addEventListener('change', () => {
+                otherDescGroup.style.display = itemSelect.value === 'other' ? 'block' : 'none';
+            });
+
+            expenseForm.querySelector('.btn-add-item').addEventListener('click', (e) => {
+                const select = itemSelect;
+                const amountInput = expenseForm.querySelector('.expense-item-amount');
+                const otherDescInput = expenseForm.querySelector('.expense-item-other-desc');
+                const itemName = select.options[select.selectedIndex].text;
+                const itemKey = select.value;
+                const amount = parseFloat(amountInput.value);
+                const otherDesc = otherDescInput.value.trim();
+
+                if (!itemKey) { alert('يرجى اختيار بند المصروف.'); return; }
+                if (isNaN(amount) || amount <= 0) { alert('يرجى إدخال مبلغ صحيح.'); return; }
+                if (itemKey === 'other' && !otherDesc) { alert('يرجى وصف بند \"أخرى\".'); return; }
+
+                stagedExpenses[projectId].push({ id: Date.now(), key: itemKey, name: itemName, amount, description: itemKey === 'other' ? otherDesc : null });
+                renderStagedExpenses(projectId, expenseForm);
+                select.value = ''; amountInput.value = ''; otherDescInput.value = ''; otherDescGroup.style.display = 'none';
+            });
+
+            expenseForm.querySelector('.staged-expenses-list').addEventListener('click', (e) => {
+                if (e.target.classList.contains('btn-delete-item')) {
+                    const itemId = parseInt(e.target.getAttribute('data-id'), 10);
+                    stagedExpenses[projectId] = stagedExpenses[projectId].filter(item => item.id !== itemId);
+                    renderStagedExpenses(projectId, expenseForm);
+                }
+            });
+
+            expenseForm.addEventListener('submit', handleExpenseSubmit);
+        }
+
+        // --- Report Form Logic ---
+        const reportForm = group.querySelector('.report-form');
+        if(reportForm) {
+            group.querySelector('.btn-cancel-report').addEventListener('click', () => {
+                reportFormContainer.style.display = 'none';
+                reportForm.reset();
+            });
+
+            reportForm.addEventListener('submit', handleReportSubmit);
+        }
+    });
+  }
+
+  async function handleExpenseSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const projectId = form.dataset.projectId;
+    const currentExpenses = stagedExpenses[projectId];
+    if (currentExpenses.length === 0) { alert('الرجاء إضافة بند مصروف واحد على الأقل.'); return; }
+
+    const submitButton = form.querySelector('.btn-submit');
+    const uploadProgress = form.querySelector('.upload-progress');
+    submitButton.disabled = true;
+    uploadProgress.style.display = 'block';
+    uploadProgress.textContent = 'جارٍ حفظ البيانات...';
+
+    const dailyExpenses = {};
+    currentExpenses.forEach(item => {
+        const key = item.key === 'other' ? `other_${item.description.replace(/\s+/g, '_')}` : item.key;
+        dailyExpenses[key] = (dailyExpenses[key] || 0) + item.amount;
+    });
+
+    try {
+        const imageUrls = await uploadFiles(projectId, 'expenses', form.querySelector('.expense-images').files, uploadProgress);
+        
+        await addDoc(collection(db, "daily_expenses"), {
+            projectId, supervisorId: currentSupervisor.uid, supervisorName: currentSupervisor.name, createdAt: serverTimestamp(),
+            expenses: dailyExpenses,
+            totalAmount: currentExpenses.reduce((acc, item) => acc + item.amount, 0),
+            notes: form.querySelector('.expense-notes').value,
+            imageUrls,
+        });
+
+        alert("تم حفظ المصروفات بنجاح!");
+        form.closest('.form-card').style.display = 'none';
+        form.reset();
+        stagedExpenses[projectId] = [];
+        renderStagedExpenses(projectId, form);
+    } catch (error) { console.error("Error submitting expense: ", error); alert("حدث خطأ أثناء حفظ المصروفات.");
+    } finally { submitButton.disabled = false; uploadProgress.style.display = 'none'; }
+  }
+
+  async function handleReportSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const projectId = form.dataset.projectId;
+    const reportText = form.querySelector('.report-text').value.trim();
+    if (!reportText) { alert('يرجى كتابة نص التقرير قبل الحفظ.'); return; }
+
+    const submitButton = form.querySelector('.btn-submit');
+    const uploadProgress = form.querySelector('.upload-progress');
+    submitButton.disabled = true;
+    uploadProgress.style.display = 'block';
+    uploadProgress.textContent = 'جارٍ حفظ البيانات...';
+
+    try {
+        const imageUrls = await uploadFiles(projectId, 'reports', form.querySelector('.report-images').files, uploadProgress);
+
+        await addDoc(collection(db, "daily_reports"), {
+            projectId, supervisorId: currentSupervisor.uid, supervisorName: currentSupervisor.name, createdAt: serverTimestamp(),
+            reportText, imageUrls,
+        });
+
+        alert("تم حفظ التقرير بنجاح!");
+        form.closest('.form-card').style.display = 'none';
+        form.reset();
+    } catch (error) { console.error("Error submitting report: ", error); alert("حدث خطأ أثناء حفظ التقرير.");
+    } finally { submitButton.disabled = false; uploadProgress.style.display = 'none'; }
+  }
+
+  async function uploadFiles(projectId, type, files, progressElement) {
+      const imageUrls = [];
+      if (files.length > 0) {
+          progressElement.textContent = 'جارٍ رفع الصور...';
+          for (let i = 0; i < files.length; i++) {
+              progressElement.textContent = `جارٍ رفع الصورة ${i + 1} من ${files.length}`;
+              const filePath = `${type}/${projectId}/${Date.now()}-${files[i].name}`;
+              const uploadTask = uploadBytesResumable(ref(storage, filePath), files[i]);
+              await uploadTask;
+              imageUrls.push(await getDownloadURL(uploadTask.snapshot.ref));
+          }
+      }
+      return imageUrls;
+  }
+
+  function renderStagedExpenses(projectId, form) {
+    const list = form.querySelector('.staged-expenses-list');
+    const container = form.querySelector('.staged-items-container');
+    list.innerHTML = '';
+    if (!stagedExpenses[projectId] || stagedExpenses[projectId].length === 0) {
+        container.style.display = 'none'; return;
+    }
+    container.style.display = 'block';
+    stagedExpenses[projectId].forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'staged-item';
+        li.innerHTML = `<span>${item.name}${item.description ? ` <em>(${item.description})</em>` : ''}</span> <span class="item-amount">${item.amount.toFixed(2)} ج.م</span><button type="button" class="btn-delete-item" data-id="${item.id}">&times;</button>`;
+        list.appendChild(li);
+    });
   }
 
   logoutButton.addEventListener('click', async () => {
       try { await signOut(auth); } catch (error) { console.error("Logout Error:", error); }
   });
-
-  // --- Dynamic Expense Item Logic ---
-  function renderStagedExpenses() {
-    stagedExpensesList.innerHTML = '';
-    if (stagedExpenses.length === 0) {
-        stagedItemsContainer.style.display = 'none';
-        return;
-    }
-    
-    stagedItemsContainer.style.display = 'block';
-    stagedExpenses.forEach(item => {
-        const li = document.createElement('li');
-        li.classList.add('staged-item');
-        li.innerHTML = `
-            <span class="item-name">${item.name} ${item.description ? `<em>(${item.description})</em>` : ''}</span>
-            <span class="item-amount">${item.amount.toFixed(2)} ج.م</span>
-            <button type="button" class="btn-delete-item" data-id="${item.id}">&times;</button>
-        `;
-        stagedExpensesList.appendChild(li);
-    });
-  }
-
-  addItemSelect.addEventListener('change', () => {
-    otherDescriptionGroup.style.display = addItemSelect.value === 'other' ? 'block' : 'none';
-  });
-
-  addItemButton.addEventListener('click', (e) => {
-    e.preventDefault(); // Prevent default form submission
-    const selectedOption = addItemSelect.options[addItemSelect.selectedIndex];
-    const itemName = selectedOption.text;
-    const itemKey = selectedOption.value;
-    const amount = parseFloat(addItemAmount.value);
-    const otherDesc = otherDescriptionInput.value.trim();
-
-    if (!itemKey) { alert('يرجى اختيار بند المصروف.'); return; }
-    if (isNaN(amount) || amount <= 0) { alert('يرجى إدخال مبلغ صحيح وأكبر من صفر.'); return; }
-    if (itemKey === 'other' && !otherDesc) { alert('يرجى كتابة وصف لبند \'أخرى\'.'); return; }
-
-    stagedExpenses.push({
-        id: Date.now(),
-        key: itemKey,
-        name: itemName,
-        amount: amount,
-        description: itemKey === 'other' ? otherDesc : null
-    });
-
-    renderStagedExpenses();
-
-    // Reset fields
-    addItemSelect.value = '';
-    addItemAmount.value = '';
-    otherDescriptionInput.value = '';
-    otherDescriptionGroup.style.display = 'none';
-  });
-
-  stagedExpensesList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-delete-item')) {
-          const itemId = parseInt(e.target.getAttribute('data-id'), 10);
-          stagedExpenses = stagedExpenses.filter(item => item.id !== itemId);
-          renderStagedExpenses();
-      }
-  });
-
-  // --- Modal Open/Close Logic ---
-  function openModal(projectId) { 
-    currentProjectId = projectId; 
-    expenseModal.style.display = 'flex'; 
-  }
-
-  function closeModal() { 
-    expenseModal.style.display = 'none'; 
-    expenseForm.reset(); 
-    stagedExpenses = [];
-    renderStagedExpenses();
-    uploadProgress.style.display = 'none'; 
-    submitExpenseButton.disabled = false; 
-  }
-
-  function addEventListenersToButtons() {
-    document.querySelectorAll('.btn-add-expense').forEach(button => {
-        button.addEventListener('click', (e) => openModal(e.target.getAttribute('data-project-id')));
-    });
-  }
-
-  modalCloseButton.addEventListener('click', closeModal);
-  expenseModal.addEventListener('click', (e) => { if (e.target === expenseModal) closeModal(); });
-
-  // --- Final Expense Submission Logic ---
-  expenseForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!currentProjectId) return;
-    if (stagedExpenses.length === 0) { alert('الرجاء إضافة بند مصروف واحد على الأقل قبل الحفظ.'); return; }
-
-    submitExpenseButton.disabled = true;
-    uploadProgress.style.display = 'block';
-    uploadProgress.textContent = 'جارٍ حفظ البيانات...';
-
-    // 1. Structure expense data
-    const dailyExpenses = {};
-    stagedExpenses.forEach(item => {
-      if(item.key === 'other') {
-        // Use the user-provided description as the key for 'other' items
-        const dynamicKey = `other_${item.description.replace(/\s+/g, '_')}`;
-        dailyExpenses[dynamicKey] = item.amount;
-      } else {
-        dailyExpenses[item.key] = (dailyExpenses[item.key] || 0) + item.amount;
-      }
-    });
-
-    // 2. Upload images
-    const files = expenseImages.files;
-    const imageUrls = [];
-    try {
-      if (files.length > 0) {
-        uploadProgress.textContent = 'جارٍ رفع الصور...';
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i];
-          uploadProgress.textContent = `جارٍ رفع الصورة ${i + 1} من ${files.length}`;
-          const filePath = `expenses/${currentProjectId}/${Date.now()}-${file.name}`;
-          const storageRef = ref(storage, filePath);
-          const uploadTask = uploadBytesResumable(storageRef, file);
-          await uploadTask;
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          imageUrls.push(downloadURL);
-        }
-      }
-
-      // 3. Save final data to Firestore
-      uploadProgress.textContent = 'جارٍ حفظ البيانات النهائية...';
-      await addDoc(collection(db, "daily_expenses"), {
-        projectId: currentProjectId,
-        supervisorId: currentSupervisor.uid,
-        supervisorName: currentSupervisor.name,
-        createdAt: serverTimestamp(),
-        expenses: dailyExpenses,
-        totalAmount: stagedExpenses.reduce((acc, item) => acc + item.amount, 0),
-        notes: expenseNotes.value,
-        imageUrls: imageUrls,
-      });
-
-      alert("تم حفظ المصروفات بنجاح!");
-      closeModal();
-
-    } catch (error) {
-      console.error("Error submitting expense: ", error);
-      alert("حدث خطأ أثناء حفظ المصروفات. يرجى المحاولة مرة أخرى.");
-      submitExpenseButton.disabled = false;
-      uploadProgress.style.display = 'none';
-    }
-  });
 </script>
 
 <style is:global>
-  /* General Page Styles (same as before) */
+  :root { --primary-color: #3b82f6; --secondary-color: #10b981; --danger-color: #ef4444; --gray-color: #6b7280; }
   .supervisor-dashboard-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; min-height: 100vh; padding: 2rem; }
-  #auth-loading-message { text-align: center; padding-top: 5rem; font-size: 1.2rem; }
+  #auth-loading-message, .info-message { text-align: center; padding: 5rem 1rem; font-size: 1.2rem; color: #555; }
   .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
-  .dashboard-header h1 { font-size: 2.2rem; color: #1a202c; font-weight: 800; }
-  .dashboard-header p { color: #4a5568; }
-  .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
-  .project-card { width: 100%; max-width: 800px; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); padding: 1.5rem 2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin: 0 auto; }
-  .card-details { display: flex; gap: 2rem; flex-wrap: wrap; }
-  .card-item { min-width: 200px; }
+  .btn-logout { background-color: var(--danger-color); color: white; }
+  .projects-container { display: flex; flex-direction: column; gap: 1.5rem; width: 100%; max-width: 900px; margin: 0 auto; }
+  
+  .project-card, .form-card { background: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.07); padding: 1.5rem 2rem; }
+  .project-card { display: flex; flex-direction: column; align-items: stretch; gap: 1.5rem; }
+  .card-details { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .card-item { min-width: 200px; flex-grow: 1; }
   .item-label { font-size: 0.9rem; font-weight: 700; color: #718096; }
   .item-value { font-size: 1.2rem; font-weight: 600; color: #2d3748; }
-  .card-actions .btn-add-expense { background-color: #3b82f6; color: white; font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
-  .card-actions .btn-add-expense:hover { background-color: #2563eb; }
-
-  /* New Modal & Form Styles */
-  .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 1rem 0; }
-  .modal-content { background: #fff; padding: 2rem; border-radius: 12px; width: 90%; max-width: 650px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); max-height: 95vh; overflow-y: auto; }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; margin-bottom: 1.5rem; }
-  .modal-header h2 { font-size: 1.6rem; font-weight: 700; color: #1a202c; }
-  .close-button { background: none; border: none; font-size: 2rem; color: #718096; cursor: pointer; line-height: 1; }
   
-  #expense-form { display: flex; flex-direction: column; gap: 1.5rem; }
-  #expense-form .form-group { margin-bottom: 0; }
-  #expense-form label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2d3748; }
-  #expense-form input, #expense-form select, #expense-form textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+  .card-actions { display: flex; gap: 1rem; justify-content: center; }
+  .btn-action { font-weight: 700; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; flex-grow: 1; text-align: center; }
+  .btn-toggle-expense { background-color: var(--primary-color); color: white; }
+  .btn-toggle-report { background-color: var(--secondary-color); color: white; }
 
-  .form-section-title { font-size: 1.2rem; font-weight: 700; color: #374151; margin-top: 1rem; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; }
-  .form-section-title:first-of-type { margin-top: 0; }
+  .form-card { margin-top: -1rem; border-top-left-radius: 0; border-top-right-radius: 0; border-top: 1px solid #e2e8f0; }
+  .form-card-header { padding-bottom: 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
+  .form-card-header h2 { font-size: 1.4rem; font-weight: 700; color: #1a202c; }
 
-  .add-item-container { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: flex-end; }
-  .add-item-container .form-group:first-child { grid-column: 1 / 2; }
-  .add-item-container .form-group:nth-child(2) { grid-column: 2 / 3; }
-  #other-description-group { grid-column: 1 / -1; }
-  .btn-add-item { grid-column: 1 / -1; background-color: #10b981; color: white; border: none; padding: 0.8rem; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background-color 0.2s; font-size: 1rem; }
-  .btn-add-item:hover { background-color: #059669; }
+  .expense-form, .report-form { display: flex; flex-direction: column; gap: 1.5rem; }
+  .form-group { margin: 0; }
+  label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
 
-  #staged-items-container { background-color: #f9fafb; border-radius: 8px; padding: 1rem; }
-  .staged-items-list { list-style: none; padding: 0; margin: 0; }
-  .staged-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; border-bottom: 1px solid #e5e7eb; font-size: 1.05rem; }
-  .staged-item:last-child { border-bottom: none; }
-  .staged-item .item-name { font-weight: 600; color: #1f2937; }
-  .staged-item .item-name em { font-weight: 400; color: #6b7280; font-style: italic; }
-  .staged-item .item-amount { font-weight: 700; color: #059669; font-family: monospace, sans-serif; font-size: 1.1rem; }
-  .btn-delete-item { background: #fee2e2; color: #ef4444; border: none; border-radius: 50%; width: 28px; height: 28px; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-  
-  #upload-progress { margin-top: 1rem; color: #2563eb; text-align: center; font-weight: 600; }
-  .btn-submit { background-color: #2563eb; color: white; font-weight: 700; padding: 0.9rem; font-size: 1.1rem; }
-  .btn-submit:hover { background-color: #1d4ed8; }
-  .btn-submit:disabled { background-color: #9ca3af; cursor: not-allowed; }
+  .form-section-title { font-size: 1.2rem; font-weight: 700; margin-top: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e5e7eb; }
+  .add-item-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; align-items: flex-end; }
+  .other-description-group { grid-column: 1 / -1; }
+  .btn-add-item { background-color: var(--secondary-color); color: white; grid-column: 1 / -1; padding: 0.8rem; }
 
+  .staged-items-container { background-color: #f9fafb; border-radius: 8px; padding: 1rem; }
+  .staged-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0.5rem; border-bottom: 1px solid #e5e7eb; }
+  .item-amount { font-weight: 700; color: #059669; }
+  .btn-delete-item { background: #fee2e2; color: var(--danger-color); border-radius: 50%; width: 28px; height: 28px; font-size: 1.2rem; }
+
+  .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1rem; }
+  .btn, .btn-submit, .btn-cancel-expense, .btn-cancel-report, .btn-logout, .btn-add-item, .btn-delete-item { font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.2s; }
+  .btn-submit { background-color: var(--primary-color); color: white; padding: 0.8rem 1.5rem; }
+  .btn-cancel-expense, .btn-cancel-report { background-color: var(--gray-color); color: white; padding: 0.8rem 1.5rem; }
 </style>
