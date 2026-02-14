@@ -264,6 +264,7 @@ import Layout from '../../layouts/Layout.astro';
               totalAmount: currentExpenses.reduce((acc, item) => acc + item.amount, 0),
               notes: form.querySelector('.expense-notes').value,
               imageUrls,
+              isRead: false, // Mark as unread
           };
           
           await addDoc(collection(db, "daily_expenses"), expenseData);
@@ -299,8 +300,10 @@ import Layout from '../../layouts/Layout.astro';
               supervisorId: currentSupervisor.uid, 
               supervisorName: currentSupervisor.name, 
               createdAt: serverTimestamp(),
-              reportText, 
+              report: reportText, // Corrected from reportText to report
+              notes: '', // Adding empty notes field for consistency
               imageUrls,
+              isRead: false, // Mark as unread
           });
           alert("تم حفظ التقرير بنجاح!");
           form.closest('.form-card').style.display = 'none';

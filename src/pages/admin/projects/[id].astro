@@ -6,6 +6,8 @@ export const prerender = false;
 
 const { id } = Astro.params;
 let project = null;
+let unreadExpenseReports = 0;
+let unreadDailyReports = 0;
 
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
@@ -18,6 +20,18 @@ try {
             const supervisorDocs = await Promise.all(projectData.supervisorIds.map(sid => db.collection('users').doc(sid).get()));
             supervisorNames = supervisorDocs.map(doc => doc.exists ? doc.data().name : 'مشرف محذوف');
         }
+
+        const expenseReportsSnapshot = await db.collection('daily_expenses')
+            .where('projectId', '==', id)
+            .where('isRead', '==', false)
+            .get();
+        unreadExpenseReports = expenseReportsSnapshot.size;
+
+        const dailyReportsSnapshot = await db.collection('daily_reports')
+            .where('projectId', '==', id)
+            .where('isRead', '==', false)
+            .get();
+        unreadDailyReports = dailyReportsSnapshot.size;
 
         project = { 
             id: projectDoc.id, 
@@ -65,6 +79,12 @@ try {
 
                     <section class="report-links-section">
                         <a href={`/admin/projects/${id}/expense-reports`} class="report-link-card">
+                            {unreadExpenseReports > 0 && 
+                                <div class="notification-badge">
+                                    <span class="dot"></span>
+                                    <span class="text">جديد</span>
+                                </div>
+                            }
                              <div class="card-icon expense-icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-receipt-2" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16l-3 -2l-2 2l-2 -2l-2 2l-2 -2l-3 2" /><path d="M14 8h-2.5a1.5 1.5 0 0 0 0 3h1.5a1.5 1.5 0 0 1 0 3h-2.5" /><path d="M12 17v.01" /></svg>
                             </div>
@@ -74,6 +94,12 @@ try {
                             </div>
                         </a>
                         <a href={`/admin/projects/${id}/daily-reports`} class="report-link-card">
+                             {unreadDailyReports > 0 && 
+                                <div class="notification-badge">
+                                    <span class="dot"></span>
+                                    <span class="text">جديد</span>
+                                </div>
+                             }
                              <div class="card-icon daily-icon">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="icon-tabler icon-tabler-clipboard-text" width="36" height="36" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><rect x="9" y="3" width="6" height="4" rx="2" /><path d="M9 12h6" /><path d="M9 16h6" /></svg>
                             </div>
@@ -96,12 +122,24 @@ try {
 </Layout>
 
 <style>
+    @keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.7);
+        }
+        50% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 10px rgba(255, 82, 82, 0);
+        }
+    }
+
     :root { 
         --primary-color: #007bff; 
         --border-color: #e9ecef; 
         --card-shadow: 0 4px 15px rgba(0,0,0,0.06);
         --expense-color: #dc3545;
         --daily-color: #28a745;
+        --notification-color: #ff5252;
     }
     .project-details-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f8f9fa; min-height: 100vh; padding: 2.5rem; }
     .container { max-width: 1100px; margin: 0 auto; }
@@ -119,13 +157,36 @@ try {
     .info-item span { font-weight: 600; font-size: 1.1rem; }
 
     .report-links-section { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-    .report-link-card { background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
+    .report-link-card { position: relative; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); text-decoration: none; color: inherit; display: flex; align-items: center; padding: 2rem; transition: transform 0.2s, box-shadow 0.2s; border: 1px solid var(--border-color); }
     .report-link-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
     .card-icon { margin-left: 1.5rem; padding: 1rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
     .expense-icon { background-color: var(--expense-color); }
     .daily-icon { background-color: var(--daily-color); }
     .card-content h3 { font-size: 1.5rem; font-weight: 700; margin: 0 0 0.5rem 0; }
     .card-content p { margin: 0; color: #6c757d; line-height: 1.7; }
+    
+    .notification-badge {
+        position: absolute;
+        top: -10px; 
+        right: -10px;
+        background-color: var(--notification-color);
+        color: white;
+        border-radius: 16px;
+        padding: 4px 10px 4px 8px;
+        display: flex;
+        align-items: center;
+        font-size: 0.9rem;
+        font-weight: 700;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    .notification-badge .dot {
+        width: 10px;
+        height: 10px;
+        background-color: white;
+        border-radius: 50%;
+        margin-left: 6px;
+        animation: pulse 1.5s infinite;
+    }
 
     .error-card { text-align: center; padding: 4rem; background: #fff; border-radius: 12px; box-shadow: var(--card-shadow); border: 1px solid var(--border-color); }
     .error-card h2 { color: var(--danger-color); font-size: 2rem; margin-bottom: 1rem; }

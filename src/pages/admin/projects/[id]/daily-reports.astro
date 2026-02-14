@@ -10,6 +10,19 @@ let project = null;
 let dailyReports = [];
 let feedback = { message: '', type: '' };
 
+// Mark reports as read when the page is loaded
+if (id) {
+    const unreadReportsRef = db.collection('daily_reports').where('projectId', '==', id).where('isRead', '==', false);
+    const unreadReportsSnapshot = await unreadReportsRef.get();
+    if (!unreadReportsSnapshot.empty) {
+        const batch = db.batch();
+        unreadReportsSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, { isRead: true });
+        });
+        await batch.commit();
+    }
+}
+
 // ... (Backend POST, GET, and data fetching logic remains unchanged) ...
 if (Astro.request.method === 'POST') {
     try {
