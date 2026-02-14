@@ -18,14 +18,12 @@ const formatTimestamp = (timestamp) => {
     });
 };
 
-// Fetch all project, report, and expense data from Firestore.
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
 
     if (projectDoc.exists) {
         const projectData = projectDoc.data();
         
-        // Fetch supervisor names
         let supervisorNames = [];
         if (Array.isArray(projectData.supervisorIds) && projectData.supervisorIds.length > 0) {
             const supervisorDocs = await Promise.all(projectData.supervisorIds.map(sid => db.collection('users').doc(sid).get()));
@@ -38,43 +36,43 @@ try {
             supervisors: supervisorNames,
         };
 
-        // Fetch all DAILY REPORTS for this project, ordered by the newest first.
+        // STABLE: Fetch reports without ordering from DB
         const dailyReportsSnapshot = await db.collection('daily_reports')
                                         .where('projectId', '==', id)
-                                        .orderBy('createdAt', 'desc')
                                         .get();
         
+        // STABLE: Sort in code after fetching
         dailyReports = dailyReportsSnapshot.docs.map(doc => {
             const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: formatTimestamp(data.createdAt),
-            };
-        });
+            return { id: doc.id, ...data }; // Keep raw timestamp for sorting
+        })
+        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)) // Sort descending, safely
+        .map(report => ({ ...report, createdAt: formatTimestamp(report.createdAt) })); // Format timestamp after sorting
 
-        // Fetch all EXPENSE REPORTS for this project, ordered by the newest first.
+        // STABLE: Fetch expense reports without ordering from DB
         const expenseReportsSnapshot = await db.collection('daily_expenses')
                                            .where('projectId', '==', id)
-                                           .orderBy('createdAt', 'desc')
                                            .get();
 
+        // STABLE: Sort expenses in code after fetching
         expenseReports = expenseReportsSnapshot.docs.map(doc => {
             const data = doc.data();
-            return {
-                id: doc.id,
-                ...data,
-                createdAt: formatTimestamp(data.createdAt),
-                // Convert the expenses object into an array for easier mapping
-                expenseItems: Object.entries(data.expenses || {}).map(([key, value]) => ({ name: key.replace(/_/g, ' '), amount: value })),
-            };
-        });
+            return { 
+                id: doc.id, 
+                ...data, 
+                expenseItems: Object.entries(data.expenses || {}).map(([key, value]) => ({ name: key.replace(/_/g, ' '), amount: value }))
+            }; // Keep raw timestamp for sorting
+        })
+        .sort((a, b) => (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)) // Sort descending, safely
+        .map(report => ({ ...report, createdAt: formatTimestamp(report.createdAt) })); // Format timestamp after sorting
 
     } else {
         return Astro.redirect('/404');
     }
 } catch (error) {
-    console.error("Error fetching project data:", error);
+    // This log is important for future debugging, so it will be kept.
+    console.error("Error fetching project data in [id].astro:", error);
+    project = { projectName: "خطأ في تحميل البيانات" };
 }
 ---
 
@@ -101,7 +99,7 @@ try {
                 </div>
                 <div class="info-item">
                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    <div><strong>المشرفون:</strong><span>{project.supervisors.join(', ') || 'لم يتم التعيين'}</span></div>
+                    <div><strong>المشرفون:</strong><span>{project.supervisors ? project.supervisors.join(', ') : 'لم يتم التعيين'}</span></div>
                 </div>
             </section>
 
@@ -183,18 +181,27 @@ try {
 </Layout>
 
 <script>
+  // This script is functional and important for security.
+  // It redirects users away from this admin page if they are not authorized.
   import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db } from '../../../firebase/client';
   import { doc, getDoc } from 'firebase/firestore';
 
   onAuthStateChanged(auth, async (user) => {
     if (user) {
-      const userDocRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-        window.location.href = '/dashboard';
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+        // If user is a supervisor, they don't belong here. Redirect them.
+        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
+          window.location.href = '/dashboard';
+        }
+        // If user is an admin, they can stay. No action needed.
+      } catch (error) {
+          console.error("Auth check error on admin page:", error);
       }
     } else {
+      // If no user is logged in, redirect to the main login page.
       window.location.href = '/admin';
     }
   });
