@@ -20,7 +20,8 @@ import Layout from '../../layouts/Layout.astro';
         <button id="logout-button" class="btn btn-logout">تسجيل الخروج</button>
       </header>
 
-      <div id="projects-list" class="projects-grid"></div>
+      <div id="projects-list" class="projects-container"></div>
+      
       <div id="no-projects-message" class="info-message" style="display: none;">
         <p>لم يتم تعيين أي مشاريع لك حتى الآن.</p>
       </div>
@@ -47,8 +48,9 @@ import Layout from '../../layouts/Layout.astro';
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-            userNamePlaceholder.textContent = userDoc.data().name || 'المشرف';
-            await fetchAndDisplayProjects(user.uid);
+            const supervisorName = userDoc.data().name || 'المشرف';
+            userNamePlaceholder.textContent = supervisorName;
+            await fetchAndDisplayProjects(user.uid, supervisorName);
             loadingMessage.style.display = 'none';
             dashboardContent.style.display = 'block';
         } else {
@@ -59,7 +61,7 @@ import Layout from '../../layouts/Layout.astro';
     }
   });
 
-  async function fetchAndDisplayProjects(supervisorUid) {
+  async function fetchAndDisplayProjects(supervisorUid, supervisorName) {
     try {
         const q = query(collection(db, "projects"), where("supervisorIds", "array-contains", supervisorUid));
         const querySnapshot = await getDocs(q);
@@ -71,20 +73,20 @@ import Layout from '../../layouts/Layout.astro';
         } else {
             noProjectsMessage.style.display = 'none';
             projectsList.innerHTML = supervisedProjects.map(project => {
-                // Card layout corrected with global styles in mind
-                return `<a href="/dashboard/project/${project.id}" class="project-card">
-                          <div class="project-card-content">
-                            <h3>${project.projectName}</h3>
-                            <p class="project-address">${project.projectAddress || 'العنوان غير محدد'}</p>
-                            <div class="project-card-action">
-                              <span>عرض التفاصيل</span>
-                              <span class="arrow-icon">→</span>
-                            </div>
+                return `<div class="project-card">
+                          <div class="card-item">
+                            <span class="item-label">اسم المشروع</span>
+                            <p class="item-value">${project.projectName}</p>
                           </div>
-                          <div class="project-card-icon-wrapper">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="card-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+                          <div class="card-item">
+                            <span class="item-label">اسم المشرف</span>
+                            <p class="item-value">${supervisorName}</p>
                           </div>
-                        </a>`;
+                           <div class="card-item">
+                            <span class="item-label">عنوان المشروع</span>
+                            <p class="item-value">${project.projectAddress || 'غير محدد'}</p>
+                          </div>
+                        </div>`;
             }).join('');
         }
     } catch (error) {
@@ -105,93 +107,87 @@ import Layout from '../../layouts/Layout.astro';
 </script>
 
 <style is:global>
-  .supervisor-dashboard-page { direction: rtl; font-family: 'Cairo', sans-serif; background-color: #f4f7f6; min-height: 100vh; padding: 2rem; }
-  #auth-loading-message { text-align: center; padding-top: 5rem; font-size: 1.2rem; }
-  .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 2px solid #e2e8f0; }
+  .supervisor-dashboard-page { 
+    direction: rtl; 
+    font-family: 'Cairo', sans-serif; 
+    background-color: #f4f7f6; 
+    min-height: 100vh; 
+    padding: 2rem;
+  }
+  
+  #auth-loading-message { 
+    text-align: center; 
+    padding-top: 5rem; 
+    font-size: 1.2rem; 
+  }
+  
+  .dashboard-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem; 
+    border-bottom: 2px solid #e2e8f0; 
+  }
+  
   .dashboard-header h1 { font-size: 2.2rem; color: #1a202c; font-weight: 800; }
   .dashboard-header p { color: #4a5568; }
+  
   .btn-logout { background-color: #ef4444; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
   .btn-logout:hover { background-color: #dc2626; }
   
-  .projects-grid { 
-    display: grid; 
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); 
-    gap: 2rem; 
+  .projects-container { 
+    display: flex; 
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
+    width: 100%;
   }
 
   .project-card { 
-    display: flex;
+    width: 100%;
+    max-width: 800px;
     background: #ffffff;
     border-radius: 12px; 
     box-shadow: 0 4px 12px rgba(0,0,0,0.07); 
-    overflow: hidden;
-    text-decoration: none;
-    color: inherit;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-  }
-  .project-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-  }
-
-  .project-card-content {
-    flex-grow: 1;
-    padding: 1.25rem;
+    padding: 1.5rem 2rem;
     display: flex;
-    flex-direction: column;
-    text-align: right; /* Ensure text is right-aligned in RTL */
+    flex-direction: row; /* Changed to row */
+    justify-content: space-between; /* Distribute items */
+    align-items: flex-start; /* Align to the top */
+    flex-wrap: wrap; /* Allow items to wrap on small screens */
+    gap: 1rem;
   }
 
-  .project-card h3 { 
-    font-size: 1.4rem; 
-    font-weight: 700; 
-    color: #2d3748; 
-    margin: 0 0 0.5rem 0;
+  .card-item {
+    flex-grow: 1; /* Allow items to grow */
+    min-width: 200px; /* Give a minimum width to prevent squishing */
   }
 
-  .project-address { 
-    font-size: 1rem; 
-    color: #718096; 
-    margin: 0;
-    flex-grow: 1;
+  .item-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #718096;
+    margin-bottom: 0.25rem;
   }
 
-  .project-card-action {
-    margin-top: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+  .item-value {
+    font-size: 1.2rem;
     font-weight: 600;
-    color: #3f51b5;
-  }
-  
-  .project-card:hover .project-card-action {
-    color: #36469e;
-  }
-  
-  .arrow-icon {
-    font-size: 1.5rem;
-    transition: transform 0.2s;
-  }
-  /* Correct arrow direction for RTL */
-  .project-card:hover .arrow-icon {
-    transform: translateX(-5px);
+    color: #2d3748;
+    margin: 0;
   }
 
-  .project-card-icon-wrapper {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 110px;
-    background-color: #f0f2f9;
+  .info-message, .error-message { 
+    text-align: center; 
+    font-size: 1.1rem; 
+    color: #555; 
+    background-color: #fff; 
+    border-radius: 8px; 
+    padding: 2rem; 
+    max-width: 800px;
+    margin: 0 auto;
   }
-
-  .card-icon {
-    width: 40px;
-    height: 40px;
-    color: #3f51b5;
-  }
-
-  .info-message, .error-message { text-align: center; font-size: 1.1rem; color: #555; background-color: #fff; border-radius: 8px; padding: 2rem; }
 </style>
