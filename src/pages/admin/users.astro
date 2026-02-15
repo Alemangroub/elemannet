@@ -1,15 +1,27 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="إدارة المستخدمين">
-  <main class="user-admin-page">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="user-admin-page" style="display: none;">
     <div class="container">
 
       <!-- Page Header -->
       <div class="page-header">
         <h1>إدارة المستخدمين</h1>
-        <a href="/admin/projects" class="btn btn-secondary">العودة للوحة التحكم</a>
+        <div class="header-actions">
+          <a href="/admin/projects" class="btn btn-secondary">العودة للوحة التحكم</a>
+          <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
+        </div>
       </div>
 
       <!-- Add User Form -->
@@ -68,11 +80,17 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style is:global>
+  /* Auth and Logout Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+  .auth-container p { font-size: 1.2rem; }
+  main#page-content { display: block; }
+
   .user-admin-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
   .user-admin-page .container { max-width: 1200px; margin: 0 auto; }
   .user-admin-page .card { background-color: #fff; border-radius: 12px; padding: 2rem; margin-bottom: 2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
   .user-admin-page .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #e0e0e0; }
   .user-admin-page .page-header h1 { font-size: 2.2rem; color: #333; font-weight: 900; }
+  .header-actions { display: flex; gap: 1rem; }
   .user-admin-page .form-container h2 { font-size: 1.8rem; margin-top: 0; margin-bottom: 1.5rem; font-weight: 800; color: #3f51b5; }
   .user-admin-page .form-group { margin-bottom: 1.5rem; }
   .user-admin-page .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #555; }
@@ -117,139 +135,170 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-  import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db, firebaseConfig } from '../../firebase/client';
-  import { createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+  import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
   import { initializeApp, deleteApp } from 'firebase/app';
   import { collection, setDoc, onSnapshot, doc, deleteDoc, query, orderBy, getDoc } from 'firebase/firestore';
 
-  let adminUser = null;
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        adminUser = user;
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-            window.location.href = '/dashboard';
-        }
-    } else {
-        window.location.href = '/admin';
-    }
+  document.addEventListener('DOMContentLoaded', () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+      let adminUser = null;
+
+      onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              adminUser = user;
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+
+                      const logoutButton = document.getElementById('logout-button');
+                      if (logoutButton) {
+                          logoutButton.addEventListener('click', async () => {
+                              await signOut(auth);
+                              window.location.href = '/admin';
+                          });
+                      }
+                      
+                      initializePage(user);
+
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+      });
   });
 
-  const addUserForm = document.getElementById('add-user-form');
-  const addUserBtn = document.getElementById('add-user-btn');
-  const feedbackMessage = document.getElementById('add-user-feedback');
-  const usersList = document.getElementById('users-list');
-  const noUsersMessage = document.getElementById('no-users-message');
-  const modal = document.getElementById('delete-confirm-modal');
-  const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-  const modalCancelBtn = document.getElementById('modal-cancel-btn');
+  function initializePage(adminUser) {
+    const addUserForm = document.getElementById('add-user-form');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const feedbackMessage = document.getElementById('add-user-feedback');
+    const usersList = document.getElementById('users-list');
+    const noUsersMessage = document.getElementById('no-users-message');
+    const modal = document.getElementById('delete-confirm-modal');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    let userIdToDelete = null;
 
-  let userIdToDelete = null;
+    addUserForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      addUserBtn.disabled = true;
+      feedbackMessage.textContent = 'جاري إنشاء الحساب وتخزين البيانات...';
+      feedbackMessage.className = 'feedback-message';
 
-  addUserForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    addUserBtn.disabled = true;
-    feedbackMessage.textContent = 'جاري إنشاء الحساب وتخزين البيانات...';
-    feedbackMessage.className = 'feedback-message';
+      const name = document.getElementById('user-name').value;
+      const email = document.getElementById('user-email').value;
+      const password = document.getElementById('user-password').value;
+      const role = document.getElementById('user-role').value;
+      
+      const appName = `secondary-app-${Date.now()}`;
+      const secondaryApp = initializeApp(firebaseConfig, appName);
+      const secondaryAuth = getAuth(secondaryApp);
 
-    const name = document.getElementById('user-name').value;
-    const email = document.getElementById('user-email').value;
-    const password = document.getElementById('user-password').value;
-    const role = document.getElementById('user-role').value;
-    
-    const appName = `secondary-app-${Date.now()}`;
-    const secondaryApp = initializeApp(firebaseConfig, appName);
-    const secondaryAuth = getAuth(secondaryApp);
+      try {
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const newUserUid = userCredential.user.uid;
+        await setDoc(doc(db, "users", newUserUid), { uid: newUserUid, name, email, role, createdAt: new Date() });
+        feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!';
+        feedbackMessage.classList.add('success');
+        addUserForm.reset();
+      } catch (error) {
+        console.error("Error creating user:", error);
+        let errorMessage = 'فشل إنشاء المستخدم.';
+        if (error.code === 'auth/email-already-in-use') errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل.';
+        else if (error.code === 'auth/weak-password') errorMessage = 'كلمة السر ضعيفة جدًا.';
+        feedbackMessage.textContent = errorMessage;
+        feedbackMessage.classList.add('error');
+      } finally {
+        addUserBtn.disabled = false;
+        await deleteApp(secondaryApp);
+        setTimeout(() => { feedbackMessage.textContent = ''; }, 5000);
+      }
+    });
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-      const newUserUid = userCredential.user.uid;
-      // MODIFIED: Added the 'role' field to the document.
-      await setDoc(doc(db, "users", newUserUid), { uid: newUserUid, name, email, role, createdAt: new Date() });
-      feedbackMessage.textContent = 'تم إنشاء حساب المستخدم بنجاح!';
-      feedbackMessage.classList.add('success');
-      addUserForm.reset();
-    } catch (error) {
-      console.error("Error creating user:", error);
-      let errorMessage = 'فشل إنشاء المستخدم.';
-      if (error.code === 'auth/email-already-in-use') errorMessage = 'هذا البريد الإلكتروني مستخدم بالفعل.';
-      else if (error.code === 'auth/weak-password') errorMessage = 'كلمة السر ضعيفة جدًا.';
-      feedbackMessage.textContent = errorMessage;
-      feedbackMessage.classList.add('error');
-    } finally {
-      addUserBtn.disabled = false;
-      await deleteApp(secondaryApp);
-      setTimeout(() => { feedbackMessage.textContent = ''; }, 5000);
-    }
-  });
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+    onSnapshot(usersQuery, (snapshot) => {
+      const userDocs = snapshot.docs.filter(doc => adminUser && doc.id !== adminUser.uid);
+      if (userDocs.length === 0) {
+        noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
+        noUsersMessage.style.display = 'block';
+        usersList.innerHTML = '';
+      } else {
+        noUsersMessage.style.display = 'none';
+        usersList.innerHTML = userDocs.map(doc => {
+          const user = doc.data();
+          const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
+          const creationDate = user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString('ar-EG') : 'غير معروف';
+          const role = user.role || 'N/A';
+          const roleText = role === 'admin' ? 'مسؤول' : role === 'supervisor' ? 'مشرف' : 'غير محدد';
 
-  const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
-  onSnapshot(usersQuery, (snapshot) => {
-    const userDocs = snapshot.docs.filter(doc => adminUser && doc.id !== adminUser.uid);
-    if (userDocs.length === 0) {
-      noUsersMessage.textContent = 'لا يوجد مستخدمون حاليًا.';
-      noUsersMessage.style.display = 'block';
-      usersList.innerHTML = '';
-    } else {
-      noUsersMessage.style.display = 'none';
-      usersList.innerHTML = userDocs.map(doc => {
-        const user = doc.data();
-        const userInitial = user.name ? user.name.charAt(0).toUpperCase() : '?';
-        const creationDate = user.createdAt?.toDate ? user.createdAt.toDate().toLocaleDateString('ar-EG') : 'غير معروف';
-        const role = user.role || 'N/A';
-        const roleText = role === 'admin' ? 'مسؤول' : role === 'supervisor' ? 'مشرف' : 'غير محدد';
+          return `
+            <div class="user-card" data-id="${user.uid}">
+              <div class="user-card-header">
+                <div class="user-avatar">${userInitial}</div>
+                <div class="user-info"><h3 class="user-name">${user.name}</h3><p class="user-email">${user.email}</p></div>
+              </div>
+              <div class="user-card-body">
+                <p>تاريخ الإنشاء: <strong>${creationDate}</strong></p>
+                <p>الصلاحية: <span class="role-badge ${role}">${roleText}</span></p>
+              </div>
+              <div class="user-card-footer">
+                <button class="btn btn-danger delete-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
+                  <span>حذف</span>
+                </button>
+              </div>
+            </div>`;
+        }).join('');
+      }
+    });
 
-        return `
-          <div class="user-card" data-id="${user.uid}">
-            <div class="user-card-header">
-              <div class="user-avatar">${userInitial}</div>
-              <div class="user-info"><h3 class="user-name">${user.name}</h3><p class="user-email">${user.email}</p></div>
-            </div>
-            <div class="user-card-body">
-              <p>تاريخ الإنشاء: <strong>${creationDate}</strong></p>
-              <p>الصلاحية: <span class="role-badge ${role}">${roleText}</span></p>
-            </div>
-            <div class="user-card-footer">
-              <button class="btn btn-danger delete-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>
-                <span>حذف</span>
-              </button>
-            </div>
-          </div>`;
-      }).join('');
-    }
-  });
-
-  // Delete User Logic remains the same...
-  usersList.addEventListener('click', (e) => {
-    const target = e.target.closest('.delete-btn');
-    if (target) {
-      const item = target.closest('.user-card');
-      userIdToDelete = item.dataset.id;
-      modal.style.display = 'flex';
-    }
-  });
-  modalCancelBtn.addEventListener('click', () => {
-    modal.style.display = 'none';
-    userIdToDelete = null;
-  });
-  modalConfirmBtn.addEventListener('click', async () => {
-    if (!userIdToDelete) return;
-    modalConfirmBtn.disabled = true;
-    modalConfirmBtn.textContent = 'جاري الحذف...';
-    try {
-      await deleteDoc(doc(db, 'users', userIdToDelete));
-      alert('تم حذف المستخدم من القائمة بنجاح.');
-    } catch (error) {
-      console.error("Error deleting user document: ", error);
-      alert(`حدث خطأ أثناء حذف المستخدم: ${error.message}`);
-    } finally {
+    usersList.addEventListener('click', (e) => {
+      const target = e.target.closest('.delete-btn');
+      if (target) {
+        const item = target.closest('.user-card');
+        userIdToDelete = item.dataset.id;
+        modal.style.display = 'flex';
+      }
+    });
+    modalCancelBtn.addEventListener('click', () => {
       modal.style.display = 'none';
-      modalConfirmBtn.disabled = false;
-      modalConfirmBtn.textContent = 'تأكيد الحذف';
       userIdToDelete = null;
-    }
-  });
+    });
+    modalConfirmBtn.addEventListener('click', async () => {
+      if (!userIdToDelete) return;
+      modalConfirmBtn.disabled = true;
+      modalConfirmBtn.textContent = 'جاري الحذف...';
+      try {
+        await deleteDoc(doc(db, 'users', userIdToDelete));
+        alert('تم حذف المستخدم من القائمة بنجاح.');
+      } catch (error) {
+        console.error("Error deleting user document: ", error);
+        alert(`حدث خطأ أثناء حذف المستخدم: ${error.message}`);
+      } finally {
+        modal.style.display = 'none';
+        modalConfirmBtn.disabled = false;
+        modalConfirmBtn.textContent = 'تأكيد الحذف';
+        userIdToDelete = null;
+      }
+    });
+  }
 </script>

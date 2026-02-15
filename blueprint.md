@@ -1,9 +1,9 @@
 
-# Blueprint: Elemannet - Project Management Dashboard
+# Blueprint: Elemannet - Project & Installment Management Dashboard
 
 ## 1. Overview
 
-This application is a web-based project management dashboard named "Elemannet". It is designed for administrators to create, monitor, and manage various construction or contracting projects. The platform provides a centralized view of all projects, with detailed pages for each project to track daily work progress and expenses. Supervisors can submit daily reports and expense claims, including image attachments, directly from their mobile devices or desktops.
+This application is a web-based project management dashboard named "Elemannet". It is designed for administrators to create, monitor, and manage various construction or contracting projects, as well as handle customer contracts and installment plans. The platform provides a centralized view of all projects and contracts, with detailed pages for tracking work progress, expenses, and payment schedules. Supervisors can submit daily reports and expense claims, while administrators manage the financial and contractual aspects.
 
 ## 2. Core Features & Design
 
@@ -17,51 +17,76 @@ This application is a web-based project management dashboard named "Elemannet". 
 
 ### 2.2. Implemented Features
 
--   **Admin Dashboard (`/admin`):
+#### 2.2.1. Project & Supervisor Management
+
+-   **Admin Dashboard (`/admin/projects`):**
     -   Displays a list of all current projects in a grid of cards.
     -   Each project card shows the project name, client name, and city.
-    -   Includes a prominent button to "Add a New Project", which leads to the project creation page.
+    -   Includes a prominent button to "Add a New Project".
 
--   **Add New Project (`/admin/add-project`):
+-   **Add New Project (`/admin/add-project`):**
     -   A user-friendly form to create a new project.
-    -   Fields include Project Name, Client Name, and City.
-    -   Upon successful submission, the admin is redirected back to the main dashboard where the new project appears.
+    -   Upon successful submission, the admin is redirected back to the main project dashboard.
 
--   **Project Details Page (`/admin/projects/[id]`):
-    -   Provides a central hub for a single project.
-    -   Displays the project's main information.
-    -   Features two main navigation buttons:
-        -   "**Daily Reports**": Navigates to a page listing all daily progress reports for the project.
-        -   "**Expense Reports**": Navigates to a page listing all expense reports for the project.
+-   **Project Details Page (`/admin/projects/[id]`):**
+    -   Provides a central hub for a single project, displaying its main information.
+    -   Features navigation to "Daily Reports" and "Expense Reports".
 
--   **Daily Reports Page (`/admin/projects/[id]/daily-reports`):
-    -   Displays a list of all daily work reports submitted for the selected project, sorted by the newest first.
-    -   Each report is shown on a card with the supervisor's name, timestamp, report details, notes, and any attached images.
-    -   **Inline Editing**: Admins can click "Edit" on any report card to transform it into a form within the same page. They can modify the report text and notes and then save or cancel.
-    -   **Safe Deletion**: A "Delete" button is available on each card. Clicking it opens a custom modal to confirm the action, preventing accidental deletions.
+-   **Daily & Expense Reports (`/admin/projects/[id]/...`):**
+    -   Admins can view all daily work and expense reports submitted for a project.
+    -   Features include inline editing and safe deletion (with a confirmation modal) for all reports.
 
--   **Expense Reports Page (`/admin/projects/[id]/expense-reports`):
-    -   Displays a list of all expense reports, sorted by the newest first.
-    -   Each report card details the breakdown of expenses (e.g., steel, cement, labor), the total amount, supervisor's name, timestamp, notes, and attached receipts/images.
-    -   **Inline Editing**: Similar to daily reports, admins can click "Edit" to modify expense values and notes directly on the card. The total is recalculated automatically as amounts are changed.
-    -   **Safe Deletion**: A "Delete" button with a confirmation modal is implemented for safe and verified report deletion.
+-   **Supervisor Submission Form (`/`):**
+    -   A comprehensive form for supervisors to submit "Daily Reports" or an "Expense Reports" for their assigned projects, including image uploads.
 
--   **Supervisor Submission Form (`/`):
-    -   A comprehensive and user-friendly form for supervisors.
-    -   Allows selection of the project they are reporting for from a dropdown list.
-    -   Supervisors can enter their name.
-    -   They can choose to submit either a "Daily Report" or an "Expense Report" via toggle buttons.
-    -   **Conditional Fields** appear based on the report type selected, allowing entry of work details or itemized expenses.
-    -   Includes a field for notes and a multi-file upload button for images/invoices.
-    -   The form submits all data, including uploaded files, to the backend for processing and storage.
+#### 2.2.2. Installment & Contract Management
 
-## 3. Current Task: Implementing Inline Editing & Deletion
+-   **Installments Dashboard (`/admin/installments`):**
+    -   Provides a summary of total contracts, total installment amounts, and total paid amounts.
+    -   Lists all customer contracts with key details, linking to a detailed view for each.
+    -   Includes a link to the notifications page and an action to add a new contract.
+
+-   **Contract & Installment Creation (`/admin/add-installment`):**
+    -   A guided form to create a new customer contract.
+    -   Automatically generates an installment schedule based on the total amount and number of installments.
+    -   Allows customization of individual installment amounts and due dates before saving.
+
+-   **Contract Details Page (`/admin/contract-details`):**
+    -   Displays a complete summary of a single contract.
+    -   Lists all associated installments with their status (paid/unpaid), amount, and due date.
+    -   Allows admins to toggle the status of each installment (with confirmation).
+    -   Provides options to edit the entire contract, delete it (which also deletes all its installments), or print it.
+    -   Includes a link to edit each individual installment.
+
+-   **Installment Editing (`/admin/edit-installment`):**
+    -   A dedicated page to modify the amount, due date, or status of a single installment.
+
+-   **Contract Editing (`/admin/edit-contract`):**
+    -   Allows modification of core contract details.
+    -   Recalculates the schedule for *unpaid* installments if the total amount or number of installments is changed, preserving the records of already paid installments.
+
+-   **Installment Notifications (`/admin/notifications`):**
+    -   A dedicated page that automatically categorizes and displays unpaid installments that are either overdue or due within the next 7 days, helping admins track urgent payments.
+
+#### 2.2.3. Security & Authentication
+
+-   **Role-Based Access Control:** A robust authentication system has been implemented across all administrative sections.
+    -   Access to all pages under `/admin/...` is restricted to logged-in users.
+    -   Users with a `supervisor` role are redirected away from admin pages to their dashboard.
+    -   Only users with an `admin` role can view and interact with the project and installment management pages.
+-   **Secure Admin Login (`/admin`):** The generic `/admin` route now serves as the primary login portal for administrators. Unauthorized users are shown the login form.
+-   **Logout Functionality:** A "تسجيل الخروج" (Logout) button has been added to all admin pages, allowing for a secure session termination.
+
+## 3. Current Task: Secure the Installment Management System
 
 ### Plan & Steps for the requested change:
 
-1.  **[Completed] Add Edit/Delete Buttons:** Add "Edit" and "Delete" buttons to each report card on both the `daily-reports` and `expense-reports` pages.
-2.  **[Completed] Implement Custom Delete Modal:** Replace the browser's default `confirm()` pop-up with a custom, styled modal for a better user experience and to ensure compatibility with all browsers.
-3.  **[Completed] Enable Delete Functionality:** Wire up the backend logic to handle the deletion of a report from the Firestore database when the action is confirmed in the modal.
-4.  **[Completed] Implement Inline Editing (Expense Reports):** Develop the "inline editing" feature for the expense reports page. On clicking "Edit", the card will switch to a hidden form view, allowing the admin to update values. The implementation will ensure the layout remains stable.
-5.  **[Completed] Implement Inline Editing (Daily Reports):** Apply the same stable and robust inline editing functionality to the daily reports page, ensuring a consistent user experience across the application.
-6.  **[Completed] Update Blueprint:** Finalize the task by updating this `blueprint.md` file to reflect all the new features and changes implemented.
+1.  **[Completed] Identify Target Pages:** Located all pages related to installment and contract management: `installments`, `add-installment`, `edit-installment`, `contract-details`, `edit-contract`, and `notifications`.
+2.  **[Completed] Implement Authentication Wrapper:** On each target page, implemented a unified authentication check.
+    -   The page content is hidden by default.
+    -   An `onAuthStateChanged` listener verifies the user's login status and role.
+    -   If the user is a logged-in `admin`, the main content is displayed.
+    -   If the user is not an `admin` or is not logged in, they are shown the `AdminLogin` component or redirected.
+3.  **[Completed] Add Logout Functionality:** Added a "Logout" button to the header of each secured page to allow admins to sign out easily.
+4.  **[Completed] Update Navigation & Links:** Added "Edit Installment" links to the contract details page and ensured all navigation remains consistent.
+5.  **[Completed] Update Blueprint:** Finalized the task by updating this `blueprint.md` file to document the new security architecture and the full suite of installment management features.

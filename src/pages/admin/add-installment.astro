@@ -1,11 +1,23 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="إضافة عقد جديد">
-    <main>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+        <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
         <div class="form-container">
-            <h1>إضافة عقد جديد</h1>
+            <div class="form-header">
+                <h1>إضافة عقد جديد</h1>
+                <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+            </div>
             <form id="add-installment-form">
                 <div class="input-group">
                     <label for="unitType">نوع الوحدة</label>
@@ -67,7 +79,15 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style>
-    main {
+    /* Auth and Logout styles */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    .auth-container p { font-size: 1.2rem; }
+    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; font-size: 0.9rem; }
+    .btn-logout:hover { background-color: #c0392b; }
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .form-header h1 { margin: 0; }
+
+    main#page-content {
         padding: 2rem;
         display: flex;
         justify-content: center;
@@ -90,7 +110,6 @@ import Layout from '../../layouts/Layout.astro';
 
     h1 {
         text-align: center;
-        margin-bottom: 2rem;
         color: #333;
     }
 
@@ -157,139 +176,174 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { onAuthStateChanged } from 'firebase/auth';
-    import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { collection, doc, getDoc, writeBatch } from 'firebase/firestore';
 
-    // Auth check to protect the page
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-                window.location.href = '/dashboard';
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
+
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'flex'; // Changed to flex
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+
+                        // Initialize form logic now that user is authenticated
+                        initializeForm();
+
+                    } else {
+                        await signOut(auth);
+                        if(loginContainer) loginContainer.style.display = 'block';
+                        if(pageContent) pageContent.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
+                }
+            } else {
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
             }
-        } else {
-            window.location.href = '/admin';
-        }
-    });
-    
-    const unitTypeSelect = document.getElementById('unitType');
-    const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
-    const otherUnitTypeInput = document.getElementById('otherUnitType');
-
-    unitTypeSelect.addEventListener('change', () => {
-        if (unitTypeSelect.value === 'other') {
-            otherUnitTypeGroup.style.display = 'block';
-            otherUnitTypeInput.required = true;
-        } else {
-            otherUnitTypeGroup.style.display = 'none';
-            otherUnitTypeInput.required = false;
-        }
+        });
     });
 
-    const installmentsCountSelect = document.getElementById('installmentsCount');
-    const totalAmountInput = document.getElementById('totalAmount');
-    const installmentsContainer = document.getElementById('installments-container');
+    function initializeForm() {
+        const unitTypeSelect = document.getElementById('unitType');
+        const otherUnitTypeGroup = document.getElementById('other-unit-type-group');
+        const otherUnitTypeInput = document.getElementById('otherUnitType');
 
-    function generateInstallmentFields() {
-        const count = parseInt(installmentsCountSelect.value) || 0;
-        const totalAmount = parseFloat(totalAmountInput.value) || 0;
-        
-        installmentsContainer.innerHTML = '';
+        unitTypeSelect.addEventListener('change', () => {
+            if (unitTypeSelect.value === 'other') {
+                otherUnitTypeGroup.style.display = 'block';
+                otherUnitTypeInput.required = true;
+            } else {
+                otherUnitTypeGroup.style.display = 'none';
+                otherUnitTypeInput.required = false;
+            }
+        });
 
-        if (count > 0) {
-            const installmentAmount = (totalAmount / count).toFixed(2);
+        const installmentsCountSelect = document.getElementById('installmentsCount');
+        const totalAmountInput = document.getElementById('totalAmount');
+        const installmentsContainer = document.getElementById('installments-container');
 
-            for (let i = 1; i <= count; i++) {
-                const entry = document.createElement('div');
-                entry.className = 'installment-entry';
+        function generateInstallmentFields() {
+            const count = parseInt(installmentsCountSelect.value) || 0;
+            const totalAmount = parseFloat(totalAmountInput.value) || 0;
+            
+            installmentsContainer.innerHTML = '';
 
-                const dueDate = new Date();
-                dueDate.setDate(dueDate.getDate() + 1);
-                dueDate.setMonth(dueDate.getMonth() + (i - 1));
-                const formattedDueDate = dueDate.toISOString().split('T')[0];
-                
-                entry.innerHTML = `
-                    <div class="installment-header">القسط رقم ${i}</div>
-                    <div class="input-group">
-                        <label for="installment-amount-${i}">مبلغ القسط</label>
-                        <input type="number" step="0.01" id="installment-amount-${i}" value="${installmentAmount > 0 ? installmentAmount : '0.00'}" required />
-                    </div>
-                    <div class="input-group">
-                        <label for="installment-due-date-${i}">تاريخ الاستحقاق</label>
-                        <input type="date" id="installment-due-date-${i}" value="${formattedDueDate}" required />
-                    </div>
-                    <div class="input-group">
-                        <label for="installment-status-${i}">الحالة</label>
-                        <select id="installment-status-${i}" required>
-                            <option value="unpaid" selected>مستحق</option>
-                            <option value="paid">مدفوع</option>
-                        </select>
-                    </div>
-                `;
-                installmentsContainer.appendChild(entry);
+            if (count > 0) {
+                const installmentAmount = (totalAmount / count).toFixed(2);
+
+                for (let i = 1; i <= count; i++) {
+                    const entry = document.createElement('div');
+                    entry.className = 'installment-entry';
+
+                    const dueDate = new Date();
+                    dueDate.setDate(dueDate.getDate() + 1);
+                    dueDate.setMonth(dueDate.getMonth() + (i - 1));
+                    const formattedDueDate = dueDate.toISOString().split('T')[0];
+                    
+                    entry.innerHTML = `
+                        <div class="installment-header">القسط رقم ${i}</div>
+                        <div class="input-group">
+                            <label for="installment-amount-${i}">مبلغ القسط</label>
+                            <input type="number" step="0.01" id="installment-amount-${i}" value="${installmentAmount > 0 ? installmentAmount : '0.00'}" required />
+                        </div>
+                        <div class="input-group">
+                            <label for="installment-due-date-${i}">تاريخ الاستحقاق</label>
+                            <input type="date" id="installment-due-date-${i}" value="${formattedDueDate}" required />
+                        </div>
+                        <div class="input-group">
+                            <label for="installment-status-${i}">الحالة</label>
+                            <select id="installment-status-${i}" required>
+                                <option value="unpaid" selected>مستحق</option>
+                                <option value="paid">مدفوع</option>
+                            </select>
+                        </div>
+                    `;
+                    installmentsContainer.appendChild(entry);
+                }
             }
         }
+
+        installmentsCountSelect.addEventListener('change', generateInstallmentFields);
+        totalAmountInput.addEventListener('input', generateInstallmentFields);
+
+        const form = document.getElementById('add-installment-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الحفظ...';
+
+            try {
+                const unitType = document.getElementById('unitType').value === 'other'
+                    ? document.getElementById('otherUnitType').value
+                    : document.getElementById('unitType').value;
+
+                const contractData = {
+                    unitType: unitType,
+                    unitLocation: document.getElementById('unitLocation').value,
+                    customerName: document.getElementById('customerName').value,
+                    customerPhone: document.getElementById('customerPhone').value,
+                    totalAmount: parseFloat(totalAmountInput.value),
+                    installmentsCount: parseInt(installmentsCountSelect.value),
+                    createdAt: new Date(),
+                };
+
+                const installments = [];
+                let calculatedTotal = 0;
+                for (let i = 1; i <= contractData.installmentsCount; i++) {
+                    const amount = parseFloat(document.getElementById(`installment-amount-${i}`).value);
+                    const dueDate = document.getElementById(`installment-due-date-${i}`).value;
+                    const status = document.getElementById(`installment-status-${i}`).value;
+                    installments.push({ amount, dueDate, status });
+                    calculatedTotal += amount;
+                }
+
+                if (Math.abs(contractData.totalAmount - calculatedTotal) > 0.01) {
+                    throw new Error(`مجموع الأقساط لا يساوي المبلغ الإجمالي`);
+                }
+
+                const batch = writeBatch(db);
+                const contractRef = doc(collection(db, "contracts"));
+                batch.set(contractRef, contractData);
+
+                installments.forEach(inst => {
+                    const installmentRef = doc(collection(db, "installments"));
+                    batch.set(installmentRef, { ...inst, contractId: contractRef.id, customerName: contractData.customerName, unitLocation: contractData.unitLocation });
+                });
+
+                await batch.commit();
+                alert('تم حفظ العقد والأقساط بنجاح!');
+                window.location.href = '/admin/installments';
+
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                alert(`حدث خطأ أثناء الحفظ: ${error.message}`);
+                submitButton.disabled = false;
+                submitButton.textContent = 'حفظ العقد';
+            }
+        });
     }
-
-    installmentsCountSelect.addEventListener('change', generateInstallmentFields);
-    totalAmountInput.addEventListener('input', generateInstallmentFields);
-
-    const form = document.getElementById('add-installment-form');
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'جاري الحفظ...';
-
-        try {
-            const unitType = document.getElementById('unitType').value === 'other'
-                ? document.getElementById('otherUnitType').value
-                : document.getElementById('unitType').value;
-
-            const contractData = {
-                unitType: unitType,
-                unitLocation: document.getElementById('unitLocation').value,
-                customerName: document.getElementById('customerName').value,
-                customerPhone: document.getElementById('customerPhone').value,
-                totalAmount: parseFloat(totalAmountInput.value),
-                installmentsCount: parseInt(installmentsCountSelect.value),
-                createdAt: new Date(),
-            };
-
-            const installments = [];
-            let calculatedTotal = 0;
-            for (let i = 1; i <= contractData.installmentsCount; i++) {
-                const amount = parseFloat(document.getElementById(`installment-amount-${i}`).value);
-                const dueDate = document.getElementById(`installment-due-date-${i}`).value;
-                const status = document.getElementById(`installment-status-${i}`).value;
-                installments.push({ amount, dueDate, status });
-                calculatedTotal += amount;
-            }
-
-            if (Math.abs(contractData.totalAmount - calculatedTotal) > 0.01) {
-                throw new Error(`مجموع الأقساط لا يساوي المبلغ الإجمالي`);
-            }
-
-            const batch = writeBatch(db);
-            const contractRef = doc(collection(db, "contracts"));
-            batch.set(contractRef, contractData);
-
-            installments.forEach(inst => {
-                const installmentRef = doc(collection(db, "installments"));
-                batch.set(installmentRef, { ...inst, contractId: contractRef.id, customerName: contractData.customerName, unitLocation: contractData.unitLocation });
-            });
-
-            await batch.commit();
-            alert('تم حفظ العقد والأقساط بنجاح!');
-            window.location.href = '/admin/installments';
-
-        } catch (error) {
-            console.error("Error adding document: ", error);
-            alert(`حدث خطأ أثناء الحفظ: ${error.message}`);
-            submitButton.disabled = false;
-            submitButton.textContent = 'حفظ العقد';
-        }
-    });
 </script>

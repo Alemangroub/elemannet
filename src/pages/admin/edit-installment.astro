@@ -1,13 +1,22 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="تعديل القسط">
-    <main id="edit-installment-page">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+        <AdminLogin />
+    </div>
+    
+    <main id="page-content" style="display: none;">
         <div class="form-container">
             <div class="header">
                 <h1>تعديل القسط</h1>
-                <p>قم بتحديث تفاصيل القسط أدناه.</p>
+                <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
             </div>
 
             <div id="loader" class="loader-container">
@@ -46,11 +55,22 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style>
-    main#edit-installment-page {
+    /* Auth and Logout styles */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif;}
+    .auth-container p { font-size: 1.2rem; }
+    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; font-size: 0.9rem; }
+    .btn-logout:hover { background-color: #c0392b; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .header h1 { margin: 0; }
+
+    main#page-content {
         display: flex;
         justify-content: center;
         align-items: flex-start;
         padding: 2rem 1rem;
+        min-height: 100vh;
+        font-family: 'Cairo', sans-serif;
+        direction: rtl;
     }
 
     .form-container {
@@ -108,90 +128,126 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { onAuthStateChanged } from 'firebase/auth';
-    import { doc, getDoc, updateDoc } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, updateDoc } from 'firebase/firestore';
 
-    const loader = document.getElementById('loader');
-    const form = document.getElementById('edit-installment-form');
-    const errorMessage = document.getElementById('error-message');
-    const cancelBtn = document.getElementById('cancel-btn');
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
 
-    let installmentId = null;
-    let contractId = null;
-    let installmentRef = null;
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-                window.location.href = '/dashboard';
-            } else {
-                const urlParams = new URLSearchParams(window.location.search);
-                installmentId = urlParams.get('id');
-                contractId = urlParams.get('contractId'); 
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
 
-                if (!installmentId || !contractId) {
-                    displayError("لم يتم العثور على معرف القسط أو العقد. يرجى العودة والمحاولة مرة أخرى.");
-                    return;
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'flex'; // changed to flex
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+                        
+                        // Initialize the form logic now that user is authenticated
+                        initializeForm();
+
+                    } else {
+                        await signOut(auth);
+                        if(loginContainer) loginContainer.style.display = 'block';
+                        if(pageContent) pageContent.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
                 }
-                
-                cancelBtn.href = `/admin/contract-details?id=${contractId}`;
-                installmentRef = doc(db, "installments", installmentId);
-                await loadInstallmentData();
-            }
-        } else {
-            window.location.href = '/admin';
-        }
-    });
-
-    async function loadInstallmentData() {
-        try {
-            const docSnap = await getDoc(installmentRef);
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                form.elements['amount'].value = data.amount;
-                form.elements['dueDate'].value = data.dueDate;
-                form.elements['status'].value = data.status;
-                loader.style.display = 'none';
-                form.style.display = 'flex';
             } else {
-                displayError(`لم يتم العثور على قسط بالمعرف: ${installmentId}`);
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
             }
-        } catch (error) {
-            console.error("Error loading installment data:", error);
-            displayError("حدث خطأ أثناء تحميل بيانات القسط.");
-        }
-    }
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'جاري الحفظ...';
-
-        try {
-            const updatedData = {
-                amount: parseFloat(form.elements['amount'].value),
-                dueDate: form.elements['dueDate'].value,
-                status: form.elements['status'].value,
-            };
-
-            await updateDoc(installmentRef, updatedData);
-            window.location.href = `/admin/contract-details?id=${contractId}`;
-
-        } catch (error) {
-            console.error("Error updating installment: ", error);
-            alert("فشل تحديث القسط. يرجى المحاولة مرة أخرى.");
-            submitButton.disabled = false;
-            submitButton.textContent = 'حفظ التعديلات';
-        }
+        });
     });
 
-    function displayError(message) {
-        loader.style.display = 'none';
-        errorMessage.textContent = message;
-        errorMessage.style.display = 'block';
+    function initializeForm() {
+        const loader = document.getElementById('loader');
+        const form = document.getElementById('edit-installment-form');
+        const errorMessage = document.getElementById('error-message');
+        const cancelBtn = document.getElementById('cancel-btn');
+
+        let installmentId = null;
+        let contractId = null;
+        let installmentRef = null;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        installmentId = urlParams.get('id');
+        contractId = urlParams.get('contractId'); 
+
+        if (!installmentId || !contractId) {
+            displayError("لم يتم العثور على معرف القسط أو العقد. يرجى العودة والمحاولة مرة أخرى.");
+            return;
+        }
+        
+        cancelBtn.href = `/admin/contract-details?id=${contractId}`;
+        installmentRef = doc(db, "installments", installmentId);
+        loadInstallmentData();
+        
+        async function loadInstallmentData() {
+            try {
+                const docSnap = await getDoc(installmentRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    form.elements['amount'].value = data.amount;
+                    form.elements['dueDate'].value = data.dueDate;
+                    form.elements['status'].value = data.status;
+                    loader.style.display = 'none';
+                    form.style.display = 'flex';
+                } else {
+                    displayError(`لم يتم العثور على قسط بالمعرف: ${installmentId}`);
+                }
+            } catch (error) {
+                console.error("Error loading installment data:", error);
+                displayError("حدث خطأ أثناء تحميل بيانات القسط.");
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الحفظ...';
+
+            try {
+                const updatedData = {
+                    amount: parseFloat(form.elements['amount'].value),
+                    dueDate: form.elements['dueDate'].value,
+                    status: form.elements['status'].value,
+                };
+
+                await updateDoc(installmentRef, updatedData);
+                window.location.href = `/admin/contract-details?id=${contractId}`;
+
+            } catch (error) {
+                console.error("Error updating installment: ", error);
+                alert("فشل تحديث القسط. يرجى المحاولة مرة أخرى.");
+                submitButton.disabled = false;
+                submitButton.textContent = 'حفظ التعديلات';
+            }
+        });
+
+        function displayError(message) {
+            loader.style.display = 'none';
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
     }
 </script>

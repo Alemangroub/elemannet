@@ -1,17 +1,26 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="إدارة المشروعات">
-  <main class="projects-admin-page">
+  <div id="auth-loading-message" class="auth-container">
+      <p>جارٍ التحقق من صلاحيات الدخول...</p>
+  </div>
+
+  <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+  </div>
+
+  <main id="page-content" class="projects-admin-page" style="display: none;">
     <div class="container">
 
       <!-- Page Header -->
       <div class="page-header">
         <h1>إدارة المشروعات</h1>
         <div class="header-actions">
-          <a href="/admin" class="btn btn-secondary">العودة للوحة التحكم</a>
           <a href="/admin/add-project" class="btn btn-primary">+ إضافة مشروع جديد</a>
+          <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
       </div>
 
@@ -94,6 +103,10 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style is:global>
+  /* Auth Container Styles */
+  .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+  .auth-container p { font-size: 1.2rem; }
+
   /* General Page Styles */
   .projects-admin-page { padding: 3rem 1.5rem; background-color: #f4f7f6; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
   .container { max-width: 1200px; margin: 0 auto; }
@@ -158,7 +171,7 @@ import Layout from '../../layouts/Layout.astro';
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
   .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; }
-  .btn-delete-custom, .btn-edit-custom, .btn-costs-custom {
+  .btn-delete-custom, .btn-edit-custom {
       background-color: transparent;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
@@ -171,8 +184,6 @@ import Layout from '../../layouts/Layout.astro';
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
   .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
   .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
-  .btn-costs-custom { color: #28a745; border: 1px solid #28a745; }
-  .btn-costs-custom:hover { background-color: #28a745; color: #fff; }
 
 
   /* Modal Styles */
@@ -215,194 +226,220 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-  import { onAuthStateChanged } from 'firebase/auth';
   import { auth, db } from '../../firebase/client';
+  import { onAuthStateChanged, signOut } from "firebase/auth";
   import { collection, onSnapshot, doc, deleteDoc, updateDoc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 
-  // --- AUTH CHECK ---
-  onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-            window.location.href = '/dashboard';
-        }
-    } else {
-        window.location.href = '/admin';
-    }
+  document.addEventListener('DOMContentLoaded', () => {
+      const authLoadingMessage = document.getElementById('auth-loading-message');
+      const loginContainer = document.getElementById('admin-login-container');
+      const pageContent = document.getElementById('page-content');
+
+      onAuthStateChanged(auth, async (user) => {
+          if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+
+          if (user) {
+              try {
+                  const userDocRef = doc(db, "users", user.uid);
+                  const userDoc = await getDoc(userDocRef);
+
+                  if (userDoc.exists() && userDoc.data().role === 'admin') {
+                      if(pageContent) pageContent.style.display = 'block';
+                      if(loginContainer) loginContainer.style.display = 'none';
+
+                      const logoutButton = document.getElementById('logout-button');
+                      if (logoutButton) {
+                          logoutButton.addEventListener('click', async () => {
+                              await signOut(auth);
+                              window.location.href = '/admin';
+                          });
+                      }
+                      
+                      initializePage();
+
+                  } else {
+                      await signOut(auth);
+                      if(loginContainer) loginContainer.style.display = 'block';
+                      if(pageContent) pageContent.style.display = 'none';
+                  }
+              } catch (error) {
+                  console.error('Auth Check Error:', error);
+                  await signOut(auth);
+                  if(loginContainer) loginContainer.style.display = 'block';
+                  if(pageContent) pageContent.style.display = 'none';
+              }
+          } else {
+              if(pageContent) pageContent.style.display = 'none';
+              if(loginContainer) loginContainer.style.display = 'block';
+          }
+      });
   });
 
-  // --- DOM ELEMENTS ---
-  const projectsList = document.getElementById('projects-list');
-  const noProjectsMessage = document.getElementById('no-projects-message');
-  const tableWrapper = document.querySelector('.table-wrapper');
-  // Delete Modal
-  const deleteModal = document.getElementById('delete-modal');
-  const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-  const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-  let projectIdToDelete = null;
-  // Edit Modal
-  const editModal = document.getElementById('edit-modal');
-  const editForm = document.getElementById('edit-form');
-  const cancelEditBtn = document.getElementById('cancel-edit-btn');
-  const projectNameInput = document.getElementById('edit-project-name');
-  const projectAddressInput = document.getElementById('edit-project-address');
-  const currentSupervisorsList = document.getElementById('current-supervisors-list');
-  const addSupervisorSelect = document.getElementById('add-supervisor-select');
-  const addSupervisorBtn = document.getElementById('add-supervisor-btn');
-  let projectIdToEdit = null;
-  let allSupervisors = [];
+  function initializePage() {
+    // --- DOM ELEMENTS ---
+    const projectsList = document.getElementById('projects-list');
+    const noProjectsMessage = document.getElementById('no-projects-message');
+    const tableWrapper = document.querySelector('.table-wrapper');
+    // Delete Modal
+    const deleteModal = document.getElementById('delete-modal');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+    let projectIdToDelete = null;
+    // Edit Modal
+    const editModal = document.getElementById('edit-modal');
+    const editForm = document.getElementById('edit-form');
+    const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const projectNameInput = document.getElementById('edit-project-name');
+    const projectAddressInput = document.getElementById('edit-project-address');
+    const currentSupervisorsList = document.getElementById('current-supervisors-list');
+    const addSupervisorSelect = document.getElementById('add-supervisor-select');
+    const addSupervisorBtn = document.getElementById('add-supervisor-btn');
+    let projectIdToEdit = null;
+    let allSupervisors = [];
 
-  // --- DATA FETCHING & RENDERING ---
-  async function fetchSupervisors() {
-    const q = query(collection(db, "users"), where("role", "==", "supervisor"));
-    const querySnapshot = await getDocs(q);
-    allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
-  }
-
-  const projectsQuery = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
-  onSnapshot(projectsQuery, (snapshot) => {
-    tableWrapper.style.display = snapshot.empty ? 'none' : '';
-    noProjectsMessage.textContent = snapshot.empty ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
-    if (projectsList) {
-      projectsList.innerHTML = snapshot.docs.map(doc => {
-        const project = doc.data();
-        const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
-        return `
-          <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
-            <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
-            <td data-label="العنوان">${project.projectAddress || '-'}</td>
-            <td data-label="المشرفون">${supervisors}</td>
-            <td data-label="الإجراءات" class="btn-action-cell">
-              <button class="btn btn-edit-custom">تعديل</button>
-              <button class="btn btn-delete-custom">حذف</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
+    // --- DATA FETCHING & RENDERING ---
+    async function fetchSupervisors() {
+      const q = query(collection(db, "users"), where("role", "==", "supervisor"));
+      const querySnapshot = await getDocs(q);
+      allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     }
-  });
 
-  // --- MODAL VISIBILITY ---
-  function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
-  function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
+    const projectsQuery = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+    onSnapshot(projectsQuery, (snapshot) => {
+      tableWrapper.style.display = snapshot.empty ? 'none' : '';
+      noProjectsMessage.textContent = snapshot.empty ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
+      if (projectsList) {
+        projectsList.innerHTML = snapshot.docs.map(doc => {
+          const project = doc.data();
+          const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
+          return `
+            <tr data-id="${doc.id}" data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
+              <td data-label="اسم المشروع" class="project-name-cell">${project.projectName || '-'}</td>
+              <td data-label="العنوان">${project.projectAddress || '-'}</td>
+              <td data-label="المشرفون">${supervisors}</td>
+              <td data-label="الإجراءات" class="btn-action-cell">
+                <button class="btn btn-edit-custom">تعديل</button>
+                <button class="btn btn-delete-custom">حذف</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    });
 
-  // --- GENERAL EVENT LISTENER ---
-  projectsList.addEventListener('click', (e) => {
-    const row = e.target.closest('tr');
-    if (!row) return;
+    // --- MODAL VISIBILITY ---
+    function showModal(modal) { modal.classList.add('visible'); document.body.style.overflow = 'hidden'; }
+    function hideModal(modal) { modal.classList.remove('visible'); document.body.style.overflow = ''; }
 
-    // If a button was clicked, stop propagation and handle the action
-    if (e.target.classList.contains('btn-delete-custom')) {
-      e.stopPropagation();
-      projectIdToDelete = row.dataset.id;
-      showModal(deleteModal);
-    } else if (e.target.classList.contains('btn-edit-custom')) {
-      e.stopPropagation();
-      projectIdToEdit = row.dataset.id;
-      const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
-      openEditModal(projectData);
-    } else if (e.target.classList.contains('btn-costs-custom')) {
-        // Let the default browser action (navigation) proceed
+    // --- GENERAL EVENT LISTENER ---
+    projectsList.addEventListener('click', (e) => {
+      const row = e.target.closest('tr');
+      if (!row) return;
+
+      if (e.target.classList.contains('btn-delete-custom')) {
         e.stopPropagation();
-    } else {
-      // Otherwise, navigate to the project details page
-      const projectId = row.dataset.id;
-      if (projectId) {
-          window.location.href = `/admin/projects/${projectId}`;
+        projectIdToDelete = row.dataset.id;
+        showModal(deleteModal);
+      } else if (e.target.classList.contains('btn-edit-custom')) {
+        e.stopPropagation();
+        projectIdToEdit = row.dataset.id;
+        const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
+        openEditModal(projectData);
+      } else {
+        const projectId = row.dataset.id;
+        if (projectId) {
+            window.location.href = `/admin/projects/${projectId}`;
+        }
       }
-    }
-  });
-
-  // --- DELETE PROJECT LOGIC ---
-  function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
-  cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-  deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideDeleteModal(); });
-  confirmDeleteBtn.addEventListener('click', async () => {
-    if (projectIdToDelete) {
-      try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
-      hideDeleteModal();
-    }
-  });
-
-  // --- EDIT PROJECT LOGIC ---
-  function openEditModal(project) {
-    projectNameInput.value = project.projectName || '';
-    projectAddressInput.value = project.projectAddress || '';
-    
-    currentSupervisorsList.innerHTML = '';
-    (project.supervisors || []).forEach(supervisor => {
-        currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
     });
 
-    updateAddSupervisorDropdown();
-    showModal(editModal);
-  }
+    // --- DELETE PROJECT LOGIC ---
+    function hideDeleteModal() { hideModal(deleteModal); projectIdToDelete = null; }
+    cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+    deleteModal.addEventListener('click', (e) => { if (e.target === deleteModal) hideDeleteModal(); });
+    confirmDeleteBtn.addEventListener('click', async () => {
+      if (projectIdToDelete) {
+        try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
+        hideDeleteModal();
+      }
+    });
 
-  function createSupervisorItemHTML(id, name) {
-      return `<div class="supervisor-item" data-id="${id}">
-                <span>${name}</span>
-                <button type="button" class="btn-delete-supervisor">حذف</button>
-              </div>`;
-  }
-
-  function updateAddSupervisorDropdown() {
-    const currentIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
-    const availableSupervisors = allSupervisors.filter(s => !currentIds.includes(s.id));
-    addSupervisorSelect.innerHTML = '<option value="">اختر مشرفًا...</option>' + 
-                                   availableSupervisors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-  }
-
-  // Handle adding a supervisor
-  addSupervisorBtn.addEventListener('click', () => {
-      const selectedId = addSupervisorSelect.value;
-      if (!selectedId) return;
-      const supervisor = allSupervisors.find(s => s.id === selectedId);
-      if (supervisor) {
+    // --- EDIT PROJECT LOGIC ---
+    function openEditModal(project) {
+      projectNameInput.value = project.projectName || '';
+      projectAddressInput.value = project.projectAddress || '';
+      
+      currentSupervisorsList.innerHTML = '';
+      (project.supervisors || []).forEach(supervisor => {
           currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
-          updateAddSupervisorDropdown();
-      }
-  });
+      });
 
-  // Handle deleting a supervisor from the list
-  currentSupervisorsList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-delete-supervisor')) {
-          e.target.closest('.supervisor-item').remove();
-          updateAddSupervisorDropdown();
-      }
-  });
+      updateAddSupervisorDropdown();
+      showModal(editModal);
+    }
 
-  function hideEditModal() { hideModal(editModal); projectIdToEdit = null; editForm.reset(); currentSupervisorsList.innerHTML = ''; }
-  cancelEditBtn.addEventListener('click', hideEditModal);
-  editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
+    function createSupervisorItemHTML(id, name) {
+        return `<div class="supervisor-item" data-id="${id}">
+                  <span>${name}</span>
+                  <button type="button" class="btn-delete-supervisor">حذف</button>
+                </div>`;
+    }
 
-  editForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!projectIdToEdit) return;
+    function updateAddSupervisorDropdown() {
+      const currentIds = Array.from(currentSupervisorsList.children).map(item => item.dataset.id);
+      const availableSupervisors = allSupervisors.filter(s => !currentIds.includes(s.id));
+      addSupervisorSelect.innerHTML = '<option value="">اختر مشرفًا...</option>' + 
+                                     availableSupervisors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
 
-    const finalSupervisorItems = Array.from(currentSupervisorsList.children);
-    const finalSupervisors = finalSupervisorItems.map(item => {
-        const id = item.dataset.id;
-        const name = allSupervisors.find(s => s.id === id).name;
-        return { id, name };
+    addSupervisorBtn.addEventListener('click', () => {
+        const selectedId = addSupervisorSelect.value;
+        if (!selectedId) return;
+        const supervisor = allSupervisors.find(s => s.id === selectedId);
+        if (supervisor) {
+            currentSupervisorsList.insertAdjacentHTML('beforeend', createSupervisorItemHTML(supervisor.id, supervisor.name));
+            updateAddSupervisorDropdown();
+        }
     });
 
-    const updatedData = {
-      projectName: projectNameInput.value,
-      projectAddress: projectAddressInput.value,
-      supervisors: finalSupervisors,
-      supervisorIds: finalSupervisors.map(s => s.id)
-    };
+    currentSupervisorsList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-delete-supervisor')) {
+            e.target.closest('.supervisor-item').remove();
+            updateAddSupervisorDropdown();
+        }
+    });
 
-    try {
-      const projectRef = doc(db, 'projects', projectIdToEdit);
-      await updateDoc(projectRef, updatedData);
-    } catch (error) { console.error("Error updating project: ", error); alert('حدث خطأ أثناء تحديث المشروع.'); }
+    function hideEditModal() { hideModal(editModal); projectIdToEdit = null; editForm.reset(); currentSupervisorsList.innerHTML = ''; }
+    cancelEditBtn.addEventListener('click', hideEditModal);
+    editModal.addEventListener('click', (e) => { if (e.target === editModal) hideEditModal(); });
 
-    hideEditModal();
-  });
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!projectIdToEdit) return;
 
-  // --- INITIALIZATION ---
-  fetchSupervisors(); // Fetch supervisors as soon as the page loads
+      const finalSupervisorItems = Array.from(currentSupervisorsList.children);
+      const finalSupervisors = finalSupervisorItems.map(item => {
+          const id = item.dataset.id;
+          const name = allSupervisors.find(s => s.id === id).name;
+          return { id, name };
+      });
 
+      const updatedData = {
+        projectName: projectNameInput.value,
+        projectAddress: projectAddressInput.value,
+        supervisors: finalSupervisors,
+        supervisorIds: finalSupervisors.map(s => s.id)
+      };
+
+      try {
+        const projectRef = doc(db, 'projects', projectIdToEdit);
+        await updateDoc(projectRef, updatedData);
+      } catch (error) { console.error("Error updating project: ", error); alert('حدث خطأ أثناء تحديث المشروع.'); }
+
+      hideEditModal();
+    });
+
+    // --- INITIALIZATION ---
+    fetchSupervisors();
+  }
 </script>

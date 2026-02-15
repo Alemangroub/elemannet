@@ -1,11 +1,23 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="تعديل العقد">
-    <main>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+        <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
         <div class="form-container">
-            <h1>تعديل العقد</h1>
+            <div class="form-header">
+                <h1>تعديل العقد</h1>
+                <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+            </div>
             <div id="loader">جاري تحميل بيانات العقد...</div>
             <form id="edit-contract-form" style="display: none;">
                 <!-- Basic Contract Details -->
@@ -54,7 +66,15 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style>
-   main { padding: 2rem; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background-color: #f4f7f6; font-family: 'Cairo', sans-serif; direction: rtl; }
+    /* Auth and Logout Styles */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    .auth-container p { font-size: 1.2rem; }
+    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; font-size: 0.9rem;}
+    .btn-logout:hover { background-color: #c0392b; }
+    .form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+    .form-header h1 { margin: 0; }
+
+    main#page-content { padding: 2rem; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; background-color: #f4f7f6; font-family: 'Cairo', sans-serif; direction: rtl; }
     .form-container { width: 100%; max-width: 600px; background: #fff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 2rem; }
     h1, .installments-title { text-align: center; margin-bottom: 2rem; color: #333; }
     .installments-title { margin-top: 2.5rem; border-top: 1px solid #eee; padding-top: 2rem; }
@@ -72,176 +92,208 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { onAuthStateChanged } from 'firebase/auth';
-    import { doc, getDoc, collection, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { doc, getDoc, collection, query, where, getDocs, writeBatch, orderBy } from 'firebase/firestore';
 
-    // Auth Check: Redirect if user is not logged in
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-                window.location.href = '/dashboard';
-            } else {
-                loadContractData();
-            }
-        } else {
-            window.location.href = '/admin';
-        }
-    });
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const contractId = urlParams.get('id');
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-    const loader = document.getElementById('loader');
-    const form = document.getElementById('edit-contract-form');
-    const installmentsContainer = document.getElementById('installments-container');
-    const paidInstallmentsInfo = document.getElementById('paid-installments-info');
-    const totalAmountInput = document.getElementById('totalAmount');
-    const installmentsCountSelect = document.getElementById('installmentsCount');
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
 
-    let paidInstallments = [];
-    let originalUnpaidIds = [];
-    let paidAmount = 0;
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'flex'; // Changed to flex
+                        if(loginContainer) loginContainer.style.display = 'none';
 
-    const generateUnpaidFields = () => {
-        installmentsContainer.innerHTML = '';
-        const totalAmount = parseFloat(totalAmountInput.value) || 0;
-        const totalCount = parseInt(installmentsCountSelect.value) || 0;
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+                        
+                        initializePage();
 
-        const unpaidCount = totalCount - paidInstallments.length;
-        if (unpaidCount < 0) {
-            installmentsContainer.innerHTML = `<p style="color: red;">خطأ: لا يمكن أن يكون إجمالي عدد الأقساط أقل من عدد الأقساط المدفوعة (${paidInstallments.length}).</p>`;
-            return;
-        }
-
-        const remainingAmount = totalAmount - paidAmount;
-        const unpaidInstallmentAmount = (unpaidCount > 0) ? (remainingAmount / unpaidCount).toFixed(2) : 0;
-
-        for (let i = 0; i < unpaidCount; i++) {
-            const entry = document.createElement('div');
-            entry.className = 'installment-entry';
-            const dueDate = new Date();
-            dueDate.setMonth(dueDate.getMonth() + paidInstallments.length + i);
-            const formattedDueDate = dueDate.toISOString().split('T')[0];
-            entry.innerHTML = `
-                <div class="installment-header">القسط المستحق رقم ${i + 1}</div>
-                <div class="input-group"><label>مبلغ القسط</label><input type="number" step="0.01" class="unpaid-amount" value="${unpaidInstallmentAmount > 0 ? unpaidInstallmentAmount : '0.00'}" required /></div>
-                <div class="input-group"><label>تاريخ الاستحقاق</label><input type="date" class="unpaid-duedate" value="${formattedDueDate}" required /></div>
-            `;
-            installmentsContainer.appendChild(entry);
-        }
-    };
-
-    async function loadContractData() {
-        if (!contractId) { loader.textContent = 'خطأ: لم يتم العثور على مُعرّف العقد.'; return; }
-        document.getElementById('cancel-btn').href = `/admin/contract-details?id=${contractId}`;
-
-        try {
-            const contractRef = doc(db, 'contracts', contractId);
-            const contractSnap = await getDoc(contractRef);
-            if (!contractSnap.exists()) { loader.textContent = 'خطأ: العقد غير موجود.'; return; }
-
-            const contract = contractSnap.data();
-            form.customerName.value = contract.customerName;
-            form.customerPhone.value = contract.customerPhone;
-            form.unitType.value = contract.unitType;
-            form.unitLocation.value = contract.unitLocation;
-            form.totalAmount.value = contract.totalAmount;
-            form.installmentsCount.value = contract.installmentsCount;
-
-            const qInstallments = query(collection(db, 'installments'), where('contractId', '==', contractId), orderBy('dueDate', 'asc'));
-            const installmentsSnapshot = await getDocs(qInstallments);
-            
-            installmentsSnapshot.forEach(instDoc => {
-                const data = instDoc.data();
-                if (data.status === 'paid') {
-                    paidInstallments.push({ id: instDoc.id, ...data });
-                    paidAmount += data.amount;
-                } else {
-                    originalUnpaidIds.push(instDoc.id);
+                    } else {
+                        await signOut(auth);
+                        if(loginContainer) loginContainer.style.display = 'block';
+                        if(pageContent) pageContent.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
                 }
-            });
-
-            if (paidInstallments.length > 0) {
-                paidInstallmentsInfo.innerHTML = `لديك ${paidInstallments.length} قسط مدفوع بإجمالي ${paidAmount.toFixed(2)} ج.م. هذه الأقساط لن تتأثر بالتعديل.`;
             } else {
-                paidInstallmentsInfo.style.display = 'none';
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
             }
-            
-            generateUnpaidFields();
-
-            loader.style.display = 'none';
-            form.style.display = 'block';
-        } catch (error) {
-            console.error('Error loading contract:', error);
-            loader.textContent = 'حدث خطأ أثناء تحميل البيانات.';
-        }
-    }
-
-    totalAmountInput.addEventListener('input', generateUnpaidFields);
-    installmentsCountSelect.addEventListener('change', generateUnpaidFields);
-
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        if (!confirm('هل أنت متأكد؟ سيتم حذف جميع الأقساط \"غير المدفوعة\" الحالية واستبدالها بالجدول الجديد.')) return;
-
-        const submitButton = form.querySelector('button[type="submit"]');
-        submitButton.disabled = true;
-        submitButton.textContent = 'جاري الحفظ...';
-
-        try {
-            const batch = writeBatch(db);
-            
-            originalUnpaidIds.forEach(id => batch.delete(doc(db, 'installments', id)));
-
-            const newTotalAmount = parseFloat(totalAmountInput.value);
-            const newInstallmentsCount = parseInt(installmentsCountSelect.value);
-
-            const contractRef = doc(db, 'contracts', contractId);
-            batch.update(contractRef, {
-                customerName: form.customerName.value,
-                customerPhone: form.customerPhone.value,
-                unitType: form.unitType.value,
-                unitLocation: form.unitLocation.value,
-                totalAmount: newTotalAmount,
-                installmentsCount: newInstallmentsCount,
-            });
-            
-            const unpaidAmountInputs = form.querySelectorAll('.unpaid-amount');
-            const unpaidDueDateInputs = form.querySelectorAll('.unpaid-duedate');
-
-            let calculatedUnpaidTotal = 0;
-            for (let i = 0; i < unpaidAmountInputs.length; i++) {
-                const amount = parseFloat(unpaidAmountInputs[i].value);
-                calculatedUnpaidTotal += amount;
-                const newInstallmentRef = doc(collection(db, 'installments'));
-                batch.set(newInstallmentRef, {
-                    contractId: contractId,
-                    customerName: form.customerName.value,
-                    unitLocation: form.unitLocation.value,
-                    amount: amount,
-                    dueDate: unpaidDueDateInputs[i].value,
-                    status: 'unpaid'
-                });
-            }
-
-            if (Math.abs(newTotalAmount - (paidAmount + calculatedUnpaidTotal)) > 0.01 * (unpaidAmountInputs.length || 1)) {
-                throw new Error('مجموع الأقساط المدفوعة والمستحقة الجديدة لا يساوي المبلغ الإجمالي للعقد.');
-            }
-
-            await batch.commit();
-            alert('تم تحديث العقد بنجاح!');
-            window.location.href = `/admin/contract-details?id=${contractId}`;
-
-        } catch (error) {
-            console.error("Error updating document: ", error);
-            alert(`حدث خطأ أثناء التحديث: ${error.message}`);
-            submitButton.disabled = false;
-            submitButton.textContent = 'حفظ التعديلات';
-        }
+        });
     });
 
-    // document.addEventListener('DOMContentLoaded', loadContractData);
+    function initializePage() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const contractId = urlParams.get('id');
+
+        const loader = document.getElementById('loader');
+        const form = document.getElementById('edit-contract-form');
+        const installmentsContainer = document.getElementById('installments-container');
+        const paidInstallmentsInfo = document.getElementById('paid-installments-info');
+        const totalAmountInput = document.getElementById('totalAmount');
+        const installmentsCountSelect = document.getElementById('installmentsCount');
+
+        let paidInstallments = [];
+        let originalUnpaidIds = [];
+        let paidAmount = 0;
+
+        const generateUnpaidFields = () => {
+            installmentsContainer.innerHTML = '';
+            const totalAmount = parseFloat(totalAmountInput.value) || 0;
+            const totalCount = parseInt(installmentsCountSelect.value) || 0;
+
+            const unpaidCount = totalCount - paidInstallments.length;
+            if (unpaidCount < 0) {
+                installmentsContainer.innerHTML = `<p style="color: red;">خطأ: لا يمكن أن يكون إجمالي عدد الأقساط أقل من عدد الأقساط المدفوعة (${paidInstallments.length}).</p>`;
+                return;
+            }
+
+            const remainingAmount = totalAmount - paidAmount;
+            const unpaidInstallmentAmount = (unpaidCount > 0) ? (remainingAmount / unpaidCount).toFixed(2) : 0;
+
+            for (let i = 0; i < unpaidCount; i++) {
+                const entry = document.createElement('div');
+                entry.className = 'installment-entry';
+                const dueDate = new Date();
+                dueDate.setMonth(dueDate.getMonth() + paidInstallments.length + i);
+                const formattedDueDate = dueDate.toISOString().split('T')[0];
+                entry.innerHTML = `
+                    <div class="installment-header">القسط المستحق رقم ${i + 1}</div>
+                    <div class="input-group"><label>مبلغ القسط</label><input type="number" step="0.01" class="unpaid-amount" value="${unpaidInstallmentAmount > 0 ? unpaidInstallmentAmount : '0.00'}" required /></div>
+                    <div class="input-group"><label>تاريخ الاستحقاق</label><input type="date" class="unpaid-duedate" value="${formattedDueDate}" required /></div>
+                `;
+                installmentsContainer.appendChild(entry);
+            }
+        };
+
+        async function loadContractData() {
+            if (!contractId) { loader.textContent = 'خطأ: لم يتم العثور على مُعرّف العقد.'; return; }
+            document.getElementById('cancel-btn').href = `/admin/contract-details?id=${contractId}`;
+
+            try {
+                const contractRef = doc(db, 'contracts', contractId);
+                const contractSnap = await getDoc(contractRef);
+                if (!contractSnap.exists()) { loader.textContent = 'خطأ: العقد غير موجود.'; return; }
+
+                const contract = contractSnap.data();
+                form.customerName.value = contract.customerName;
+                form.customerPhone.value = contract.customerPhone;
+                form.unitType.value = contract.unitType;
+                form.unitLocation.value = contract.unitLocation;
+                form.totalAmount.value = contract.totalAmount;
+                form.installmentsCount.value = contract.installmentsCount;
+
+                const qInstallments = query(collection(db, 'installments'), where('contractId', '==', contractId), orderBy('dueDate', 'asc'));
+                const installmentsSnapshot = await getDocs(qInstallments);
+                
+                installmentsSnapshot.forEach(instDoc => {
+                    const data = instDoc.data();
+                    if (data.status === 'paid') {
+                        paidInstallments.push({ id: instDoc.id, ...data });
+                        paidAmount += data.amount;
+                    } else {
+                        originalUnpaidIds.push(instDoc.id);
+                    }
+                });
+
+                if (paidInstallments.length > 0) {
+                    paidInstallmentsInfo.innerHTML = `لديك ${paidInstallments.length} قسط مدفوع بإجمالي ${paidAmount.toFixed(2)} ج.م. هذه الأقساط لن تتأثر بالتعديل.`;
+                } else {
+                    paidInstallmentsInfo.style.display = 'none';
+                }
+                
+                generateUnpaidFields();
+
+                loader.style.display = 'none';
+                form.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading contract:', error);
+                loader.textContent = 'حدث خطأ أثناء تحميل البيانات.';
+            }
+        }
+
+        totalAmountInput.addEventListener('input', generateUnpaidFields);
+        installmentsCountSelect.addEventListener('change', generateUnpaidFields);
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!confirm('هل أنت متأكد؟ سيتم حذف جميع الأقساط \"غير المدفوعة\" الحالية واستبدالها بالجدول الجديد.')) return;
+
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'جاري الحفظ...';
+
+            try {
+                const batch = writeBatch(db);
+                
+                originalUnpaidIds.forEach(id => batch.delete(doc(db, 'installments', id)));
+
+                const newTotalAmount = parseFloat(totalAmountInput.value);
+                const newInstallmentsCount = parseInt(installmentsCountSelect.value);
+
+                const contractRef = doc(db, 'contracts', contractId);
+                batch.update(contractRef, {
+                    customerName: form.customerName.value,
+                    customerPhone: form.customerPhone.value,
+                    unitType: form.unitType.value,
+                    unitLocation: form.unitLocation.value,
+                    totalAmount: newTotalAmount,
+                    installmentsCount: newInstallmentsCount,
+                });
+                
+                const unpaidAmountInputs = form.querySelectorAll('.unpaid-amount');
+                const unpaidDueDateInputs = form.querySelectorAll('.unpaid-duedate');
+
+                let calculatedUnpaidTotal = 0;
+                for (let i = 0; i < unpaidAmountInputs.length; i++) {
+                    const amount = parseFloat(unpaidAmountInputs[i].value);
+                    calculatedUnpaidTotal += amount;
+                    const newInstallmentRef = doc(collection(db, 'installments'));
+                    batch.set(newInstallmentRef, {
+                        contractId: contractId,
+                        customerName: form.customerName.value,
+                        unitLocation: form.unitLocation.value,
+                        amount: amount,
+                        dueDate: unpaidDueDateInputs[i].value,
+                        status: 'unpaid'
+                    });
+                }
+
+                if (Math.abs(newTotalAmount - (paidAmount + calculatedUnpaidTotal)) > 0.01 * (unpaidAmountInputs.length || 1)) {
+                    throw new Error('مجموع الأقساط المدفوعة والمستحقة الجديدة لا يساوي المبلغ الإجمالي للعقد.');
+                }
+
+                await batch.commit();
+                alert('تم تحديث العقد بنجاح!');
+                window.location.href = `/admin/contract-details?id=${contractId}`;
+
+            } catch (error) {
+                console.error("Error updating document: ", error);
+                alert(`حدث خطأ أثناء التحديث: ${error.message}`);
+                submitButton.disabled = false;
+                submitButton.textContent = 'حفظ التعديلات';
+            }
+        });
+
+        loadContractData();
+    }
 </script>

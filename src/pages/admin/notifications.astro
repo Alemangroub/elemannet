@@ -1,13 +1,25 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import AdminLogin from '../../components/AdminLogin.astro';
 --- 
 
 <Layout title="تنبيهات الأقساط">
-    <main>
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
+    </div>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+        <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
         <div class="notifications-container">
             <div class="header">
                 <h1>تنبيهات الأقساط</h1>
-                <a href="/admin/installments" class="btn btn-secondary">&larr; العودة إلى العقود</a>
+                <div>
+                    <a href="/admin/installments" class="btn btn-secondary">&larr; العودة إلى العقود</a>
+                    <button id="logout-button" class="btn-logout">تسجيل الخروج</button>
+                </div>
             </div>
 
             <div id="loader" class="loader-container">
@@ -35,11 +47,18 @@ import Layout from '../../layouts/Layout.astro';
 </Layout>
 
 <style is:global>
-    main {
+    /* Auth and Logout Styles */
+    .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
+    .auth-container p { font-size: 1.2rem; }
+    .btn-logout { background-color: #e74c3c; color: white; border: none; padding: 0.7rem 1.4rem; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background-color 0.2s; }
+    .btn-logout:hover { background-color: #c0392b; }
+
+    main#page-content {
         padding: 2rem;
         background-color: #f7f9fc;
         direction: rtl;
         font-family: 'Cairo', sans-serif;
+        min-height: 100vh;
     }
     .notifications-container {
         max-width: 900px;
@@ -53,6 +72,10 @@ import Layout from '../../layouts/Layout.astro';
         padding-bottom: 1.5rem;
         border-bottom: 1px solid #e0e0e0;
     }
+     .header div {
+        display: flex;
+        gap: 1rem;
+     }
     h1 {
         font-size: 2rem;
         color: #2c3e50;
@@ -188,37 +211,65 @@ import Layout from '../../layouts/Layout.astro';
 </style>
 
 <script>
-    import { onAuthStateChanged } from 'firebase/auth';
-    import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
     import { auth, db } from '../../firebase/client';
+    import { onAuthStateChanged, signOut } from "firebase/auth";
+    import { collection, getDocs, query, where, doc, getDoc } from 'firebase/firestore';
 
-    const loader = document.getElementById('loader');
-    const notificationsContent = document.getElementById('notifications-content');
-    const overdueList = document.getElementById('overdue-list');
-    const noOverdue = document.getElementById('no-overdue');
-    const dueSoonList = document.getElementById('due-soon-list');
-    const noDueSoon = document.getElementById('no-due-soon');
+    document.addEventListener('DOMContentLoaded', () => {
+        const authLoadingMessage = document.getElementById('auth-loading-message');
+        const loginContainer = document.getElementById('admin-login-container');
+        const pageContent = document.getElementById('page-content');
 
-    const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
+        onAuthStateChanged(auth, async (user) => {
+            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
 
-    // --- Auth Check ---
-    onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists() && userDoc.data().role === 'supervisor') {
-                window.location.href = '/dashboard';
+            if (user) {
+                try {
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists() && userDoc.data().role === 'admin') {
+                        if(pageContent) pageContent.style.display = 'block';
+                        if(loginContainer) loginContainer.style.display = 'none';
+
+                        const logoutButton = document.getElementById('logout-button');
+                        if (logoutButton) {
+                            logoutButton.addEventListener('click', async () => {
+                                await signOut(auth);
+                                window.location.href = '/admin';
+                            });
+                        }
+                        
+                        fetchNotifications();
+
+                    } else {
+                        await signOut(auth);
+                        if(loginContainer) loginContainer.style.display = 'block';
+                        if(pageContent) pageContent.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Auth Check Error:', error);
+                    await signOut(auth);
+                    if(loginContainer) loginContainer.style.display = 'block';
+                    if(pageContent) pageContent.style.display = 'none';
+                }
             } else {
-                // User is logged in and not a supervisor, fetch the notification data
-                fetchNotifications();
+                if(pageContent) pageContent.style.display = 'none';
+                if(loginContainer) loginContainer.style.display = 'block';
             }
-        } else {
-            // No user, redirect to login
-            window.location.href = '/admin';
-        }
+        });
     });
 
     async function fetchNotifications() {
+        const loader = document.getElementById('loader');
+        const notificationsContent = document.getElementById('notifications-content');
+        const overdueList = document.getElementById('overdue-list');
+        const noOverdue = document.getElementById('no-overdue');
+        const dueSoonList = document.getElementById('due-soon-list');
+        const noDueSoon = document.getElementById('no-due-soon');
+
+        const formatCurrency = (num) => num ? num.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' }) : '';
+
         try {
             const contractsSnapshot = await getDocs(collection(db, 'contracts'));
             const contractMap = new Map();
