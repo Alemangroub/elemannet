@@ -171,7 +171,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
   .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; }
-  .btn-delete-custom, .btn-edit-custom {
+  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom, .btn-suppliers-custom {
       background-color: transparent;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
@@ -179,11 +179,17 @@ import AdminLogin from '../../components/AdminLogin.astro';
       cursor: pointer;
       text-decoration: none; /* Ensure link-like buttons are not underlined */
       display: inline-block;
+      width: 80px;
+      text-align: center;
   }
   .btn-delete-custom { color: #d9534f; border: 1px solid #d9534f; }
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
   .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
   .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
+  .btn-installments-custom { color: #28a745; border: 1px solid #28a745; }
+  .btn-installments-custom:hover { background-color: #28a745; color: #fff; }
+  .btn-suppliers-custom { color: #ffc107; border: 1px solid #ffc107; }
+  .btn-suppliers-custom:hover { background-color: #ffc107; color: #fff; }
 
 
   /* Modal Styles */
@@ -318,6 +324,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
               <td data-label="العنوان">${project.projectAddress || '-'}</td>
               <td data-label="المشرفون">${supervisors}</td>
               <td data-label="الإجراءات" class="btn-action-cell">
+                <a href="/admin/installments?projectId=${doc.id}" class="btn-installments-custom">الأقساط</a>
+                <a href="/admin/suppliers?projectId=${doc.id}" class="btn-suppliers-custom">الموردين</a>
                 <button class="btn btn-edit-custom">تعديل</button>
                 <button class="btn btn-delete-custom">حذف</button>
               </td>
@@ -345,6 +353,10 @@ import AdminLogin from '../../components/AdminLogin.astro';
         projectIdToEdit = row.dataset.id;
         const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
         openEditModal(projectData);
+      } else if (e.target.closest('.btn-installments-custom')) {
+        e.stopPropagation();
+      } else if (e.target.closest('.btn-suppliers-custom')) {
+        e.stopPropagation();
       } else {
         const projectId = row.dataset.id;
         if (projectId) {
@@ -434,7 +446,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
       try {
         const projectRef = doc(db, 'projects', projectIdToEdit);
         await updateDoc(projectRef, updatedData);
-      } catch (error) { console.error("Error updating project: ", error); alert('حدث خطأ أثناء تحديث المشروع.'); }
+      } catch (error) { console.error("Error updating project: ", error); alert('Failed to save changes.'); }
 
       hideEditModal();
     });
