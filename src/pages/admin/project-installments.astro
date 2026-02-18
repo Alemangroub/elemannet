@@ -255,7 +255,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             return;
         }
 
-        addContractBtn.href = `/admin/add-installment?projectId=${projectId}`;
+        addContractBtn.href = `/admin/add-contract?projectId=${projectId}`;
         const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
 
         try {
