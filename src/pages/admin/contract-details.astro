@@ -3,80 +3,370 @@ import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
 ---
 
-<Layout title="أقساط العقد">
-  <div id="auth-loading-message" class="auth-container">
-    <p>جارٍ التحقق من صلاحيات الدخول...</p>
-  </div>
-
-  <div id="admin-login-container" class="auth-container" style="display: none;">
-    <AdminLogin />
-  </div>
-
-  <main id="page-content" style="display: none;">
-    <div class="details-container">
-        <div class="details-header">
-            <h1>أقساط العقد</h1>
-            <a id="back-link" href="#" class="btn btn-secondary">&larr; العودة لعقود المشروع</a>
-        </div>
-        <p>هنا سيتم عرض أقساط العقد المحدد.</p>
-        <!-- محتوى أقساط العقد هيتحط هنا -->
+<Layout title="تفاصيل العقد">
+    <div id="auth-loading-message" class="auth-container">
+        <p>جارٍ التحقق من صلاحيات الدخول...</p>
     </div>
-  </main>
+
+    <div id="admin-login-container" class="auth-container" style="display: none;">
+      <AdminLogin />
+    </div>
+
+    <main id="page-content" style="display: none;">
+        <div class="details-container">
+            <div class="details-header">
+                <h1 id="customer-name-header">تفاصيل العقد</h1>
+                <a id="back-link" href="#" class="btn btn-secondary">&larr; العودة لقائمة العقود</a>
+            </div>
+
+            <div id="loader">جاري تحميل البيانات...</div>
+            <div id="error-display" class="message-card" style="display: none;">
+                <h1>حدث خطأ</h1>
+                <p id="error-message"></p>
+            </div>
+
+            <div id="contract-details-content" style="display: none;">
+                <!-- Financial Summary -->
+                <div class="summary-dashboard">
+                    <div class="stat-card">
+                        <h4>المبلغ الإجمالي للعقد</h4>
+                        <p id="total-amount">0 ج.م.</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="paid">إجمالي المدفوع</h4>
+                        <p id="total-paid" class="paid">0 ج.م.</p>
+                    </div>
+                    <div class="stat-card">
+                        <h4 class="remaining">المبلغ المتبقي</h4>
+                        <p id="total-remaining" class="remaining">0 ج.م.</p>
+                    </div>
+                </div>
+
+                <!-- Customer and Unit Info -->
+                <div class="info-grid">
+                    <div class="info-card">
+                        <h3>بيانات العميل</h3>
+                        <p><strong>الاسم:</strong> <span id="info-customer-name">-</span></p>
+                        <p><strong>رقم الهاتف:</strong> <span id="info-customer-phone">-</span></p>
+                    </div>
+                    <div class="info-card">
+                        <h3>بيانات الوحدة</h3>
+                        <p><strong>نوع الوحدة:</strong> <span id="info-unit-type">-</span></p>
+                        <p><strong>موقع/رقم الوحدة:</strong> <span id="info-unit-location">-</span></p>
+                    </div>
+                </div>
+
+                <!-- Installments Table -->
+                <div class="installments-section">
+                    <h3>جدول الأقساط</h3>
+                    <div class="table-responsive">
+                        <table id="installments-table">
+                            <thead>
+                                <tr>
+                                    <th>م.</th>
+                                    <th>مبلغ القسط</th>
+                                    <th>تاريخ الاستحقاق</th>
+                                    <th>الحالة</th>
+                                    <th>تاريخ الدفع</th>
+                                    <th>بيان القسط</th>
+                                    <th>إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p id="no-installments-message" class="message-card" style="display: none;">لا توجد أقساط مسجلة لهذا العقد.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>تسجيل دفعة جديدة</h2>
+            <p><strong>القسط:</strong> <span id="modal-installment-name"></span></p>
+            <p><strong>المبلغ:</strong> <span id="modal-installment-amount"></span></p>
+            <form id="payment-form">
+                <label for="payment-date">تاريخ الدفع:</label>
+                <input type="date" id="payment-date" required>
+                <input type="hidden" id="modal-installment-id">
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary">حفظ الدفعة</button>
+                    <button type="button" id="cancel-payment" class="btn btn-secondary">إلغاء</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </Layout>
 
-<style>
+<style is:global>
+    :root {
+        --primary-color: #2c3e50;
+        --secondary-color: #7f8c8d;
+        --success-color: #27ae60;
+        --warning-color: #f39c12;
+        --danger-color: #c0392b;
+        --light-bg: #f7f9fc;
+        --white-bg: #ffffff;
+        --border-color: #e0e0e0;
+        --shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
     .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; font-family: 'Cairo', sans-serif; }
-    main#page-content { padding: 2rem; background-color: #f7f9fc; min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
-    .details-container { width: 100%; max-width: 900px; margin: 0 auto; }
-    .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    h1 { margin: 0; font-size: 2.2rem; color: #2c3e50; }
+    main#page-content { padding: 2rem 1rem; background-color: var(--light-bg); min-height: 100vh; direction: rtl; font-family: 'Cairo', sans-serif; }
+    .details-container { width: 100%; max-width: 1200px; margin: 0 auto; }
+    .details-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+    h1 { margin: 0; font-size: 2.2rem; color: var(--primary-color); }
     .btn { padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
-    .btn-secondary { background-color: #6c757d; color: white; }
-    .btn-secondary:hover { background-color: #5a6268; }
+    .btn-primary { background-color: var(--success-color); color: white; }
+    .btn-primary:hover { background-color: #219d52; }
+    .btn-secondary { background-color: var(--secondary-color); color: white; }
+    .btn-secondary:hover { background-color: #6a7374; }
+    .btn-warning { background-color: var(--warning-color); color: white; }
+    .btn-warning:hover { background-color: #e67e22; }
+
+    #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: var(--white-bg); border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
+    #error-display { color: var(--danger-color); border-left: 5px solid var(--danger-color); }
+
+    .summary-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+    .stat-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .stat-card h4 { margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--secondary-color); font-weight: 600; }
+    .stat-card p { margin: 0; font-size: 2rem; font-weight: 700; color: var(--primary-color); }
+    .stat-card .paid { color: var(--success-color); }
+    .stat-card .remaining { color: var(--danger-color); }
+
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .info-card { background: var(--white-bg); padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .info-card h3 { margin: 0 0 1rem 0; font-size: 1.2rem; color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+    .info-card p { margin: 0.5rem 0; font-size: 1rem; line-height: 1.6; }
+    .info-card p span { color: var(--secondary-color); font-weight: 500; }
+
+    .installments-section { background: var(--white-bg); padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); }
+    .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
+    .table-responsive { overflow-x: auto; }
+    #installments-table { width: 100%; border-collapse: collapse; }
+    #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); }
+    #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; }
+    #installments-table td { font-size: 1rem; color: var(--primary-color); }
+    .status-badge { padding: 0.3rem 0.8rem; border-radius: 15px; font-size: 0.85rem; font-weight: 600; color: white; white-space: nowrap; }
+    .status-paid { background-color: var(--success-color); }
+    .status-pending { background-color: var(--warning-color); }
+    .status-overdue { background-color: var(--danger-color); }
+
+    /* Modal Styles */
+    .modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white-bg); margin: auto; padding: 2rem; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); width: 90%; max-width: 500px; direction: rtl; }
+    .close-button { color: #aaa; float: left; font-size: 28px; font-weight: bold; cursor: pointer; }
+    #payment-form label { display: block; margin: 1rem 0 0.5rem; }
+    #payment-form input[type="date"] { width: 100%; padding: 0.8rem; border-radius: 5px; border: 1px solid var(--border-color); }
+    .modal-actions { margin-top: 1.5rem; display: flex; justify-content: flex-end; gap: 1rem; }
 </style>
 
 <script>
     import { auth, db } from '../../firebase/client';
     import { onAuthStateChanged } from "firebase/auth";
-    import { doc, getDoc } from 'firebase/firestore';
+    import { doc, getDoc, collection, query, where, getDocs, updateDoc, Timestamp } from 'firebase/firestore';
 
+    // --- Authentication ---
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
         const pageContent = document.getElementById('page-content');
 
         onAuthStateChanged(auth, async (user) => {
-            if(authLoadingMessage) authLoadingMessage.style.display = 'none';
+            authLoadingMessage.style.display = 'none';
             if (user) {
                 try {
                     const userDoc = await getDoc(doc(db, "users", user.uid));
                     if (userDoc.exists() && userDoc.data().role === 'admin') {
                         pageContent.style.display = 'block';
                         loginContainer.style.display = 'none';
-                        initializePage();
+                        initializeApp();
                     } else {
-                        await auth.signOut();
                         loginContainer.style.display = 'block';
+                        pageContent.style.display = 'none';
+                        if(auth.currentUser) await auth.signOut();
                     }
-                } catch (error) {
-                    console.error('Auth Check Error:', error);
-                    await auth.signOut();
+                } catch(e) {
                     loginContainer.style.display = 'block';
+                    pageContent.style.display = 'none';
                 }
             } else {
-                loginContainer.style.display = 'none';
+                loginContainer.style.display = 'block';
                 pageContent.style.display = 'none';
             }
         });
     });
 
-    function initializePage() {
+    // --- Main App Logic ---
+    async function initializeApp() {
+        const loader = document.getElementById('loader');
+        const errorDisplay = document.getElementById('error-display');
+        const errorMessage = document.getElementById('error-message');
+        const content = document.getElementById('contract-details-content');
+
         const urlParams = new URLSearchParams(window.location.search);
         const projectId = urlParams.get('projectId');
-        const backLink = document.getElementById('back-link');
-        if (projectId) {
-            backLink.href = `/admin/project-installments?projectId=${projectId}`;
+        const customerName = urlParams.get('customerName');
+
+        document.getElementById('back-link').href = `/admin/project-installments?projectId=${projectId}`;
+
+        if (!projectId || !customerName) {
+            loader.style.display = 'none';
+            errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة في الرابط.';
+            errorDisplay.style.display = 'block';
+            return;
         }
-        // أي كود تاني هنحتاجه للصفحة دي هيتحط هنا
+
+        try {
+            const q = query(collection(db, 'installments'), where('projectId', '==', projectId), where('customerName', '==', customerName));
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                loader.style.display = 'none';
+                errorMessage.textContent = 'لم يتم العثور على أقساط لهذا العقد.';
+                errorDisplay.style.display = 'block';
+                return;
+            }
+
+            const installments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            installments.sort((a, b) => a.dueDate.toDate() - b.dueDate.toDate());
+            
+            const firstInstallment = installments[0];
+            
+            renderContractInfo(firstInstallment);
+            renderInstallmentsTable(installments);
+            calculateSummary(installments, firstInstallment.totalAmount);
+
+            setupModal();
+            
+            loader.style.display = 'none';
+            content.style.display = 'block';
+
+        } catch (error) {
+            console.error("Error fetching contract details: ", error);
+            loader.style.display = 'none';
+            errorMessage.textContent = 'حدث خطأ أثناء تحميل تفاصيل العقد.';
+            errorDisplay.style.display = 'block';
+        }
+    }
+
+    const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+    const formatDate = (timestamp) => timestamp ? timestamp.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+    const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
+
+    function renderContractInfo(data) {
+        document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
+        document.getElementById('info-customer-name').textContent = data.customerName || '-';
+        document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
+        document.getElementById('info-unit-type').textContent = unitTypeTranslations[data.unitType] || data.unitType || '-';
+        document.getElementById('info-unit-location').textContent = data.unitLocation || '-';
+    }
+
+    function calculateSummary(installments, totalAmount) {
+        const totalPaid = installments
+            .filter(inst => inst.status === 'paid' && inst.installmentAmount)
+            .reduce((sum, inst) => sum + inst.installmentAmount, 0);
+        
+        const totalRemaining = totalAmount - totalPaid;
+
+        document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
+        document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
+        document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
+    }
+
+    function renderInstallmentsTable(installments) {
+        const tableBody = document.querySelector('#installments-table tbody');
+        const noInstallmentsMessage = document.getElementById('no-installments-message');
+        
+        if (installments.length === 0) {
+            noInstallmentsMessage.style.display = 'block';
+            tableBody.innerHTML = '';
+            return;
+        }
+
+        tableBody.innerHTML = '';
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); 
+
+        installments.forEach((inst, index) => {
+            const row = document.createElement('tr');
+            
+            let statusBadge;
+            if (inst.status === 'paid') {
+                statusBadge = '<span class="status-badge status-paid">مدفوع</span>';
+            } else if (inst.dueDate.toDate() < today) {
+                statusBadge = '<span class="status-badge status-overdue">مستحق</span>';
+            } else {
+                statusBadge = '<span class="status-badge status-pending">مستحق</span>';
+            }
+
+            const paymentButton = inst.status !== 'paid'
+                ? `<button class="btn btn-warning btn-sm pay-btn" data-id="${inst.id}" data-name="${inst.installmentName}" data-amount="${inst.installmentAmount}">تسجيل دفعة</button>`
+                : '';
+
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatCurrency(inst.installmentAmount)}</td>
+                <td>${formatDate(inst.dueDate)}</td>
+                <td>${statusBadge}</td>
+                <td>${formatDate(inst.paymentDate)}</td>
+                <td>${inst.installmentName}</td>
+                <td>${paymentButton}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        document.querySelectorAll('.pay-btn').forEach(btn => {
+            btn.addEventListener('click', () => openPaymentModal(btn.dataset.id, btn.dataset.name, btn.dataset.amount));
+        });
+    }
+
+    // --- Modal Logic ---
+    function setupModal() {
+        const modal = document.getElementById('payment-modal');
+        const closeBtn = document.querySelector('.close-button');
+        const cancelBtn = document.getElementById('cancel-payment');
+        const form = document.getElementById('payment-form');
+
+        closeBtn.onclick = () => modal.style.display = "none";
+        cancelBtn.onclick = () => modal.style.display = "none";
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const installmentId = document.getElementById('modal-installment-id').value;
+            const paymentDate = document.getElementById('payment-date').value;
+
+            if (!installmentId || !paymentDate) return;
+
+            const installmentRef = doc(db, 'installments', installmentId);
+            try {
+                await updateDoc(installmentRef, {
+                    status: 'paid',
+                    paymentDate: Timestamp.fromDate(new Date(paymentDate))
+                });
+                modal.style.display = "none";
+                initializeApp(); // Re-fetch and re-render the data
+            } catch (error) {
+                console.error("Error updating installment: ", error);
+                alert("حدث خطأ أثناء حفظ الدفعة.");
+            }
+        });
+    }
+
+    function openPaymentModal(id, name, amount) {
+        document.getElementById('modal-installment-id').value = id;
+        document.getElementById('modal-installment-name').textContent = name;
+        document.getElementById('modal-installment-amount').textContent = formatCurrency(parseFloat(amount));
+        document.getElementById('payment-date').valueAsDate = new Date();
+        document.getElementById('payment-modal').style.display = 'flex';
     }
 </script>

@@ -22,7 +22,6 @@ import AdminLogin from '../components/AdminLogin.astro';
           <p>من هنا يمكنك إدارة محتوى الموقع بسهولة وأمان.</p>
         </div>
         <div class="grid-container">
-            <a href="/admin/installments" class="card-link"><div class="card"><h3>إدارة الأقساط</h3><p>عرض وتعديل وتحديث حالة الأقساط للمشاريع المختلفة.</p></div></a>
             <a href="/admin/projects" class="card-link"><div class="card"><h3>إدارة المشاريع</h3><p>إضافة مشاريع جديدة وتعيين المشرفين والمهندسين المسؤولين عنها.</p></div></a>
             <a href="/admin/users" class="card-link"><div class="card"><h3>إدارة المستخدمين</h3><p>إضافة وتعديل وحذف المستخدمين وتعيين صلاحياتهم.</p></div></a>
         </div>
@@ -69,7 +68,7 @@ import AdminLogin from '../components/AdminLogin.astro';
             throw new Error('User data not found in database.');
         }
       } catch (error) {
-        console.error('Auth Check Error:', error.message);
+        console.error('Auth CheckError:', error.message);
         await signOut(auth);
         // Keep login form visible after error and logout
         dashboardContainer.style.display = 'none';
