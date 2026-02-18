@@ -82,7 +82,7 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
 -   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Current Task: Add Project-Specific Installment Management
+## 3. Previous Task: Add Project-Specific Installment Management
 
 ### Plan & Steps for the requested change:
 
@@ -95,3 +95,11 @@ This application is a web-based project management dashboard named "Elemannet". 
 4.  **[Completed] Implement Authentication:** Secured the new page to ensure only `admin` users can access it.
 5.  **[Completed] Finalize Navigation:** Ensured that after adding an installment, the user is redirected back to the `project-installments` page to see the updated list.
 6.  **[Completed] Update Blueprint:** Updated this `blueprint.md` file to document the new feature and mark the task as complete.
+
+## 4. Current Task: Fix Installment Status Dropdown UI
+
+### Plan & Steps for the requested change:
+
+1.  **[Identify Issue]** The "Paid/Pending" status dropdown in the `contract-details.astro` page was not fully visible on smaller screens (mobile view) because its width was constrained.
+2.  **[Implement Fix]** Modified the global stylesheet within `src/pages/admin/contract-details.astro`. Specifically, I adjusted the CSS rule targeting the `select` element within the installments table. I removed the `width: 100%` property from the `select` dropdown, allowing it to size automatically based on its content ("مستحق" / "مدفوع"). This ensures the full text is always visible.
+3.  **[Update Blueprint]** Updated this `blueprint.md` file to document the UI fix and mark the task as complete.
