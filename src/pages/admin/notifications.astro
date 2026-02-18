@@ -152,11 +152,14 @@ import AdminLogin from '../../components/AdminLogin.astro';
     }
 
     .installment-card {
+        display: block;
+        text-decoration: none;
+        color: inherit;
         background-color: #fdfdfe;
         border: 1px solid var(--border-color);
         border-radius: 8px;
         padding: 1.2rem;
-        transition: box-shadow 0.3s ease;
+        transition: box-shadow 0.3s ease, transform 0.3s ease;
     }
     
     .installment-card.overdue {
@@ -168,6 +171,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
     }
 
     .installment-card:hover {
+        transform: translateY(-3px);
         box-shadow: 0 6px 15px rgba(0,0,0,0.08);
     }
     
@@ -265,7 +269,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             }
 
             const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normalize to start of day
+            today.setHours(0, 0, 0, 0);
 
             const upcomingDate = new Date();
             upcomingDate.setDate(today.getDate() + 7);
@@ -289,8 +293,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
                 return dueDate >= today && dueDate <= upcomingDate;
             });
             
-            renderInstallments('overdue', overdueInstallments);
-            renderInstallments('upcoming', upcomingInstallments);
+            renderInstallments('overdue', overdueInstallments, projectId);
+            renderInstallments('upcoming', upcomingInstallments, projectId);
             
             loader.style.display = 'none';
             content.style.display = 'block';
@@ -303,7 +307,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         }
     }
 
-    function renderInstallments(type, installments) {
+    function renderInstallments(type, installments, projectId) {
         const listId = `${type}-installments-list`;
         const messageId = `no-${type}-message`;
         
@@ -323,8 +327,9 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const sortedInstallments = installments.sort((a,b) => a.dueDate.toDate() - b.dueDate.toDate());
 
         sortedInstallments.forEach(inst => {
-            const card = document.createElement('div');
+            const card = document.createElement('a');
             card.className = `installment-card ${type}`;
+            card.href = `/admin/contract-details?projectId=${projectId}&customerName=${encodeURIComponent(inst.customerName)}`;
 
             const daysDiff = calculateDaysDifference(inst.dueDate.toDate());
             let diffText = '';
@@ -335,7 +340,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
             }
 
             card.innerHTML = `
-                <div class="card-header">${inst.customerName}</div>
+                <div class="card-header">${inst.customerName} ${inst.customerPhone ? `(${inst.customerPhone})` : ''}</div>
                 <div class="card-details">
                     <p><strong>بيان القسط:</strong> ${inst.installmentName || '-'}</p>
                     <p><strong>المبلغ:</strong> <span class="amount">${formatCurrency(inst.installmentAmount)}</span></p>
