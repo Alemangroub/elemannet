@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
 import ConfirmModal from '../../components/ConfirmModal.astro';
+import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
 ---
 
 <Layout title="تفاصيل العقد">
@@ -74,6 +75,7 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
                                     <th>الحالة</th>
                                     <th>تاريخ الدفع</th>
                                     <th>بيان القسط</th>
+                                    <th>إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -88,6 +90,7 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
     </main>
     
     <ConfirmModal />
+    <PartialPaymentModal />
 
 </Layout>
 
@@ -98,6 +101,7 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
         --success-color: #27ae60;
         --warning-color: #f39c12;
         --danger-color: #c0392b;
+        --info-color: #3498db;
         --light-bg: #f7f9fc;
         --white-bg: #ffffff;
         --border-color: #e0e0e0;
@@ -112,12 +116,21 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
     h1 { margin: 0; font-size: 2.2rem; color: var(--primary-color); }
     .header-buttons { display: flex; gap: 1rem; }
     .btn { padding: 0.7rem 1.4rem; border-radius: 8px; text-decoration: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+    .btn-sm { font-size: 0.8rem; padding: 0.4rem 0.8rem; }
+    .actions-cell { display: flex; flex-direction: column; gap: 0.5rem; justify-content: center; }
     .btn-secondary { background-color: var(--secondary-color); color: white; }
     .btn-secondary:hover { background-color: #6a7374; }
     .btn-danger { background-color: var(--danger-color); color: white; }
     .btn-danger:hover { background-color: #a93226; }
     .btn-warning { background-color: var(--warning-color); color: white; }
     .btn-warning:hover { background-color: #d68910; }
+    .btn-edit, .btn-save { font-size: 0.9rem; padding: 0.5rem 1rem; width: 100%; }
+    .btn-edit { background-color: var(--info-color); color: white; }
+    .btn-edit:hover { background-color: #2980b9; }
+    .btn-save { background-color: var(--success-color); color: white; }
+    .btn-save:hover { background-color: #219d52; }
+    .btn-partial { background-color: var(--warning-color); color: white; width: 100%;}
+    .btn-partial:hover { background-color: #d68910; }
 
     #loader, .message-card { text-align: center; padding: 3rem; margin-top: 2rem; background: var(--white-bg); border-radius: 10px; box-shadow: var(--shadow); color: var(--secondary-color); font-size: 1.2rem; }
     #error-display { color: var(--danger-color); border-left: 5px solid var(--danger-color); }
@@ -139,10 +152,10 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
     .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
     .table-responsive { overflow-x: auto; }
     #installments-table { width: 100%; border-collapse: collapse; }
-    #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); }
+    #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
     #installments-table th { font-size: 0.9rem; color: var(--secondary-color); text-transform: uppercase; }
     #installments-table td { font-size: 1rem; color: var(--primary-color); }
-    #installments-table select { padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo', sans-serif; }
+    #installments-table select, #installments-table .edit-input { padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); font-family: 'Cairo', sans-serif; width: 100%; box-sizing: border-box; }
     #installments-table tr.status-paid { background-color: var(--green-bg); }
     #installments-table tr.status-pending { background-color: var(--yellow-bg); }
 
@@ -151,22 +164,27 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
 <script>
     import { auth, db } from '../../firebase/client';
     import { onAuthStateChanged } from "firebase/auth";
-    import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc } from 'firebase/firestore';
+    import { doc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc } from 'firebase/firestore';
 
     let currentProjectId = null;
     let currentCustomerName = null;
+    let allInstallments = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('installments-table').addEventListener('change', async (e) => {
+        const table = document.getElementById('installments-table');
+        
+        table.addEventListener('change', (e) => {
             if (e.target && e.target.classList.contains('status-select')) {
-                const selectElement = e.target;
-                const id = selectElement.dataset.id;
-                const newStatus = selectElement.value;
-                const oldStatus = selectElement.dataset.currentStatus;
+                handleStatusChange(e.target);
+            }
+        });
 
-                if (newStatus === oldStatus) return;
-
-                await updateInstallmentStatus(id, newStatus, oldStatus, selectElement);
+        table.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && (target.classList.contains('btn-edit') || target.classList.contains('btn-save'))) {
+                handleEditToggle(target);
+            } else if (target && target.classList.contains('btn-partial')) {
+                handlePartialPayment(target);
             }
         });
 
@@ -193,9 +211,9 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
 
     async function initializeApp() {
         const loader = document.getElementById('loader');
+        const content = document.getElementById('contract-details-content');
         const errorDisplay = document.getElementById('error-display');
         const errorMessage = document.getElementById('error-message');
-        const content = document.getElementById('contract-details-content');
 
         const urlParams = new URLSearchParams(window.location.search);
         currentProjectId = urlParams.get('projectId');
@@ -206,7 +224,7 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
 
         if (!currentProjectId || !currentCustomerName) {
             loader.style.display = 'none';
-            errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة في الرابط.';
+            errorMessage.textContent = 'بيانات المشروع أو العميل غير متوفرة.';
             errorDisplay.style.display = 'block';
             return;
         }
@@ -225,70 +243,191 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
                 return;
             }
 
-            const installments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            installments.sort((a, b) => a.dueDate.toDate() - b.dueDate.toDate());
+            allInstallments = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            allInstallments.sort((a, b) => a.dueDate.toDate() - b.dueDate.toDate());
             
-            const firstInstallment = installments[0];
-            
-            renderContractInfo(firstInstallment);
-            renderInstallmentsTable(installments);
-            calculateSummary(installments, firstInstallment.totalAmount);
+            renderContractInfo(allInstallments[0]);
+            renderInstallmentsTable(allInstallments);
+            calculateSummary(allInstallments, allInstallments[0].totalAmount);
             
             loader.style.display = 'none';
             content.style.display = 'block';
 
         } catch (error) {
-            console.error("Error fetching contract details: ", error);
+            console.error("Error fetching details: ", error);
             loader.style.display = 'none';
-            errorMessage.textContent = 'حدث خطأ أثناء تحميل تفاصيل العقد.';
+            errorMessage.textContent = 'حدث خطأ أثناء تحميل التفاصيل.';
             errorDisplay.style.display = 'block';
         }
     }
 
-    async function updateInstallmentStatus(id, newStatus, oldStatus, element) {
+    async function handlePartialPayment(button) {
+        const installmentId = button.dataset.id;
+        const installment = allInstallments.find(inst => inst.id === installmentId);
+
+        if (!installment) return;
+
+        const paidAmount = await window.showPartialPaymentModal(installmentId, installment.installmentAmount);
+
+        if (paidAmount && paidAmount > 0 && paidAmount < installment.installmentAmount) {
+            const remainingAmount = installment.installmentAmount - paidAmount;
+
+            const confirmationMessage = `سيتم تقسيم القسط إلى: 
+- قسط مدفوع بقيمة: ${formatCurrency(paidAmount)} 
+- قسط جديد مستحق بقيمة: ${formatCurrency(remainingAmount)}. هل أنت متأكد؟`;
+
+            const confirmed = await window.showConfirmationModal(confirmationMessage);
+
+            if (confirmed) {
+                try {
+                    const batch = writeBatch(db);
+
+                    // 1. Update original installment to be the paid part
+                    const originalInstallmentRef = doc(db, 'installments', installmentId);
+                    batch.update(originalInstallmentRef, {
+                        installmentAmount: paidAmount,
+                        status: 'paid',
+                        paymentDate: Timestamp.now()
+                    });
+
+                    // 2. Create new installment for the remaining part
+                    const newInstallmentRef = doc(collection(db, 'installments'));
+                    batch.set(newInstallmentRef, {
+                        ...installment, // Copy all original data
+                        installmentAmount: remainingAmount,
+                        installmentName: `بقية - ${installment.installmentName || 'القسط'}`,
+                        status: 'pending',
+                        paymentDate: null, // Ensure new part is not marked as paid
+                        // dueDate remains the same as the original
+                    });
+
+                    await batch.commit();
+                    initializeApp(); // Refresh view
+
+                } catch (error) {
+                    console.error("Error during partial payment: ", error);
+                    alert("حدث خطأ أثناء عملية السداد الجزئي.");
+                }
+            }
+        }
+    }
+
+    async function handleStatusChange(selectElement) {
+        // ... (code unchanged)
+        const id = selectElement.dataset.id;
+        const newStatus = selectElement.value;
+        const oldStatus = selectElement.dataset.currentStatus;
+
+        if (newStatus === oldStatus) return;
+        
         const newStatusText = newStatus === 'paid' ? 'مدفوع' : 'مستحق';
-        const confirmationMessage = `هل أنت متأكد من تغيير حالة هذا القسط إلى "${newStatusText}"؟`;
+        const confirmationMessage = `هل أنت متأكد من تغيير حالة القسط إلى "${newStatusText}"؟`;
 
         const confirmed = await window.showConfirmationModal(confirmationMessage);
 
         if (confirmed) {
             const installmentRef = doc(db, 'installments', id);
-            const updateData = { status: newStatus };
-
-            if (newStatus === 'paid') {
-                updateData.paymentDate = Timestamp.now();
-            } else {
-                updateData.paymentDate = null;
+            const updateData = { status: newStatus, paymentDate: newStatus === 'paid' ? Timestamp.now() : null };
+            try {
+                await updateDoc(installmentRef, updateData);
+                initializeApp();
+            } catch (error) {
+                console.error("Error updating status: ", error);
+                alert("فشل تحديث الحالة.");
+                selectElement.value = oldStatus;
             }
+        } else {
+            selectElement.value = oldStatus;
+        }
+    }
+
+    function handleEditToggle(button) {
+        // ... (code unchanged)
+        const row = button.closest('tr');
+        const isEditing = row.classList.contains('is-editing');
+
+        if (isEditing) {
+            saveInstallmentChanges(row, button);
+        } else {
+            enterEditMode(row, button);
+        }
+    }
+
+    function enterEditMode(row, button) {
+        // ... (code unchanged)
+        row.classList.add('is-editing');
+        button.textContent = 'حفظ';
+        button.classList.remove('btn-edit');
+        button.classList.add('btn-save');
+
+        const amountCell = row.querySelector('td[data-field="amount"]');
+        const dateCell = row.querySelector('td[data-field="dueDate"]');
+
+        const currentAmount = amountCell.dataset.originalValue;
+        const currentDate = dateCell.dataset.originalValue;
+
+        amountCell.innerHTML = `<input type="number" class="edit-input" value="${currentAmount}">`;
+        dateCell.innerHTML = `<input type="date" class="edit-input" value="${currentDate}">`;
+    }
+
+    async function saveInstallmentChanges(row, button) {
+        // ... (code unchanged)
+        const installmentId = button.dataset.id;
+        const amountInput = row.querySelector('td[data-field="amount"] input');
+        const dateInput = row.querySelector('td[data-field="dueDate"] input');
+
+        const newAmount = parseFloat(amountInput.value);
+        const newDate = dateInput.value;
+
+        if (isNaN(newAmount) || newAmount <= 0 || !newDate) {
+            alert('الرجاء إدخال مبلغ وتاريخ صحيحين.');
+            return;
+        }
+
+        const confirmed = await window.showConfirmationModal('هل أنت متأكد من حفظ هذه التغييرات؟');
+
+        if (confirmed) {
+            button.disabled = true;
+            button.textContent = 'جارٍ الحفظ...';
+            const installmentRef = doc(db, 'installments', installmentId);
+            const updateData = {
+                installmentAmount: newAmount,
+                dueDate: Timestamp.fromDate(new Date(newDate))
+            };
 
             try {
                 await updateDoc(installmentRef, updateData);
-                initializeApp(); // Refresh all data to ensure consistency
+                initializeApp();
             } catch (error) {
-                console.error("Error updating installment status: ", error);
-                alert("حدث خطأ أثناء تحديث حالة القسط.");
-                element.value = oldStatus; // Revert on error
+                console.error("Error saving changes: ", error);
+                alert('فشل حفظ التغييرات.');
+                button.disabled = false;
+                button.textContent = 'حفظ';
             }
-        } else {
-            // If user cancels, revert the select element to its original value
-            element.value = oldStatus;
         }
     }
 
     async function handleDeleteContract() {
-        const confirmationMessage = `هل أنت متأكد من حذف هذا العقد بالكامل؟ سيتم حذف جميع الأقساط المرتبطة به. لا يمكن التراجع عن هذا الإجراء.`;
-        const confirmed = await window.showConfirmationModal(confirmationMessage);
-
+        // ... (code unchanged)
+        const confirmed = await window.showConfirmationModal(`هل أنت متأكد من حذف هذا العقد بالكامل؟ سيتم حذف جميع الأقساط المرتبطة به. لا يمكن التراجع عن هذا الإجراء.`);
         if (confirmed) {
-            // ... (rest of delete logic is unchanged)
+            // ... delete logic ...
         }
     }
 
     const formatCurrency = (num) => (num || 0).toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
-    const formatDate = (timestamp) => timestamp ? timestamp.toDate().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '-';
+    const formatDate = (timestamp, format = 'long') => {
+        if (!timestamp) return '-';
+        const date = timestamp.toDate();
+        if (format === 'yyyy-mm-dd') {
+            return date.toISOString().split('T')[0];
+        }
+        return date.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+    };
     const unitTypeTranslations = { apartment: 'شقة', shop: 'محل', basement: 'بدروم', other: 'أخرى' };
 
     function renderContractInfo(data) {
+        // ... (code unchanged)
         document.getElementById('customer-name-header').textContent = `تفاصيل عقد: ${data.customerName}`;
         document.getElementById('info-customer-name').textContent = data.customerName || '-';
         document.getElementById('info-customer-phone').textContent = data.customerPhone || '-';
@@ -297,12 +436,11 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
     }
 
     function calculateSummary(installments, totalAmount) {
+        // ... (code unchanged)
         const totalPaid = installments
             .filter(inst => inst.status === 'paid' && inst.installmentAmount)
             .reduce((sum, inst) => sum + inst.installmentAmount, 0);
-        
         const totalRemaining = totalAmount - totalPaid;
-
         document.getElementById('total-amount').textContent = formatCurrency(totalAmount);
         document.getElementById('total-paid').textContent = formatCurrency(totalPaid);
         document.getElementById('total-remaining').textContent = formatCurrency(totalRemaining);
@@ -311,7 +449,7 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
     function renderInstallmentsTable(installments) {
         const tableBody = document.querySelector('#installments-table tbody');
         tableBody.innerHTML = '';
-        if (installments.length === 0) {
+        if (!installments || installments.length === 0) {
              document.getElementById('no-installments-message').style.display = 'block';
             return;
         }
@@ -329,13 +467,22 @@ import ConfirmModal from '../../components/ConfirmModal.astro';
                 </select>
             `;
 
+            const amountForInput = inst.installmentAmount || 0;
+            const dateForInput = formatDate(inst.dueDate, 'yyyy-mm-dd');
+
+            let actionsCell = `<button class="btn btn-edit btn-sm" data-id="${inst.id}">تعديل</button>`;
+            if (!isPaid) {
+                actionsCell += `<button class="btn btn-partial btn-sm" data-id="${inst.id}">سداد جزئي</button>`;
+            }
+
             row.innerHTML = `
                 <td>${index + 1}</td>
-                <td>${formatCurrency(inst.installmentAmount)}</td>
-                <td>${formatDate(inst.dueDate)}</td>
+                <td data-field="amount" data-original-value="${amountForInput}">${formatCurrency(inst.installmentAmount)}</td>
+                <td data-field="dueDate" data-original-value="${dateForInput}">${formatDate(inst.dueDate)}</td>
                 <td>${statusSelect}</td>
                 <td>${formatDate(inst.paymentDate)}</td>
                 <td>${inst.installmentName}</td>
+                <td class="actions-cell">${actionsCell}</td>
             `;
             tableBody.appendChild(row);
         });
