@@ -16,17 +16,14 @@ let success = null;
 if (Astro.request.method === 'POST') {
     try {
         const formData = await Astro.request.formData();
-        let name = formData.get('name');
-        if (name === 'اخرى') {
-            name = formData.get('other-name');
-        }
-
+        const name = formData.get('name');
+        const personName = formData.get('personName');
         const quantity = parseFloat(formData.get('quantity'));
         const unitPrice = parseFloat(formData.get('unitPrice'));
         const itemDate = formData.get('itemDate');
         const notes = formData.get('notes'); // Get notes from the form
 
-        if (!name || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
+        if (!name || !personName || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
             throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
         }
 
@@ -35,6 +32,7 @@ if (Astro.request.method === 'POST') {
 
         await db.collection('projects').doc(id).collection('items').add({
             name,
+            personName,
             quantity,
             unitPrice,
             totalPrice,
@@ -77,6 +75,9 @@ try {
     console.error("Error fetching project data in items.astro:", err);
     error = "حدث خطأ أثناء تحميل بيانات المشروع.";
 }
+
+// Get unique item names for the filter dropdown
+const uniqueItemNames = [...new Set(items.map(item => item.name))];
 ---
 <Layout title={`بنود المشروع: ${project ? project.name : ''}`}>
     <div id="auth-loading-message" class="auth-container">
@@ -116,7 +117,11 @@ try {
                             <input type="date" id="itemDate" name="itemDate" required>
                         </div>
                         <div class="form-group">
-                            <label for="main-category">الفئة الرئيسية</label>
+                            <label for="personName">اسم الشخص/الجهة</label>
+                            <input type="text" id="personName" name="personName" required placeholder="ادخل اسم المقاول أو المورد">
+                        </div>
+                        <div class="form-group">
+                            <label for="main-category">الفئة الرئيسية (لتحديد اسم البند)</label>
                             <select id="main-category" required>
                                 <option value="" disabled selected>-- اختر فئة --</option>
                                 <option value="بند العماله">بند العماله</option>
@@ -161,7 +166,7 @@ try {
                         </div>
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn">حفظ البند</button>
+                        <button type="submit" class="btn btn-primary">حفظ البند</button>
                         <button type="button" id="cancel-btn" class="btn btn-secondary">إلغاء</button>
                     </div>
                 </form>
@@ -169,42 +174,58 @@ try {
 
             <!-- Items Table -->
             <div class="content-area">
-                <h2 class="table-title">قائمة البنود الحالية</h2>
-                 {items.length > 0 ? (
-                    <div class="table-wrapper">
-                        <table class="items-table">
-                            <thead>
-                                <tr>
-                                    <th>التاريخ</th>
-                                    <th>اسم البند</th>
-                                    <th>الكمية</th>
-                                    <th>سعر الوحدة</th>
-                                    <th>الإجمالي</th>
-                                    <th>ملاحظات</th>
-                                    <th>إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {items.map(item => (
-                                    <tr>
-                                        <td data-label="التاريخ">{item.createdAt}</td>
-                                        <td data-label="اسم البند">{item.name}</td>
-                                        <td data-label="الكمية">{item.quantity}</td>
-                                        <td data-label="سعر الوحدة">{item.unitPrice.toFixed(2)}</td>
-                                        <td data-label="الإجمالي">{item.totalPrice.toFixed(2)}</td>
-                                        <td data-label="ملاحظات">{item.notes || '-'}</td>
-                                        <td data-label="إجراءات" class="actions-cell">
-                                            <a href="#" class="btn-action btn-edit">تعديل</a>
-                                            <a href="#" class="btn-action btn-delete">حذف</a>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                <div class="table-header">
+                    <h2 class="table-title">قائمة البنود الحالية</h2>
+                    <div class="filter-container">
+                        <label for="item-filter">فلترة حسب البند:</label>
+                        <select id="item-filter">
+                            <option value="" disabled selected>-- اختر بندًا لعرض الجدول --</option>
+                            <option value="all">عرض الكل</option>
+                            {uniqueItemNames.map(name => <option value={name}>{name}</option>)}
+                        </select>
                     </div>
-                ) : (
-                    <p class="no-items-message">لا توجد بنود حالياً في هذا المشروع. يمكنك إضافة بند جديد باستخدام الزر أعلاه.</p>
-                )}
+                </div>
+
+                <div id="table-container" style="display: none;">
+                     {items.length > 0 ? (
+                        <div class="table-wrapper">
+                            <table class="items-table">
+                                <thead>
+                                    <tr>
+                                        <th>التاريخ</th>
+                                        <th>اسم البند</th>
+                                        <th>اسم الشخص/الجهة</th>
+                                        <th>الكمية</th>
+                                        <th>سعر الوحدة</th>
+                                        <th>الإجمالي</th>
+                                        <th>ملاحظات</th>
+                                        <th>إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map(item => (
+                                        <tr class="item-row" data-item-name={item.name}>
+                                            <td data-label="التاريخ">{item.createdAt}</td>
+                                            <td data-label="اسم البند">{item.name}</td>
+                                            <td data-label="اسم الشخص/الجهة">{item.personName || '-'}</td>
+                                            <td data-label="الكمية">{item.quantity}</td>
+                                            <td data-label="سعر الوحدة">{item.unitPrice.toFixed(2)}</td>
+                                            <td data-label="الإجمالي">{item.totalPrice.toFixed(2)}</td>
+                                            <td data-label="ملاحظات">{item.notes || '-'}</td>
+                                            <td data-label="إجراءات" class="actions-cell">
+                                                <a href="#" class="btn-action btn-edit">تعديل</a>
+                                                <a href="#" class="btn-action btn-delete">حذف</a>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <p class="no-items-message">لا توجد بنود حالياً في هذا المشروع. يمكنك إضافة بند جديد باستخدام الزر أعلاه.</p>
+                    )}
+                </div>
+                 <p id="initial-message" class="no-items-message">الرجاء اختيار بند من القائمة أعلاه لعرض البيانات.</p>
             </div>
         </div>
     </main>
@@ -286,6 +307,7 @@ try {
             // --- Dynamic Dropdown Logic ---
             const subCategories = {
                 'بند العماله': ['بند المصروف اليومي', 'بند اجرة العمال'],
+                 'بند المقاول': ['بند لبشه عاديه', 'بند لبشه مسلحه'],
                 'بند الخرسانه': ['الاسمنت', 'الحديد', 'الزلط', 'الرمله', 'المقاول'],
                 'بند المباني': ['رمله', 'اسمنت', 'طوب', 'تشوين', 'اجرة مباني'],
                 'بند الكهرباء': ['بند الاساسيات', 'بند اجرة التركيب'],
@@ -306,13 +328,23 @@ try {
             const otherNameInput = document.getElementById('other-name');
             const hiddenNameInput = document.getElementById('name');
 
+            function updateHiddenItemName() {
+                const mainCategory = mainCategorySelect.value;
+                if (mainCategory === 'اخرى') {
+                    hiddenNameInput.value = otherNameInput.value;
+                } else if (subCategories[mainCategory]) {
+                    hiddenNameInput.value = subCategorySelect.value;
+                } else {
+                    hiddenNameInput.value = mainCategory;
+                }
+            }
+
             mainCategorySelect.addEventListener('change', () => {
                 const selectedCategory = mainCategorySelect.value;
                 subCategoryGroup.style.display = 'none';
                 otherNameGroup.style.display = 'none';
                 otherNameInput.required = false;
-                hiddenNameInput.value = '';
-
+                
                 if (subCategories[selectedCategory]) {
                     subCategorySelect.innerHTML = '';
                     subCategories[selectedCategory].forEach(sub => {
@@ -322,19 +354,16 @@ try {
                         subCategorySelect.appendChild(option);
                     });
                     subCategoryGroup.style.display = 'block';
-                    hiddenNameInput.value = subCategorySelect.value;
                 } else if (selectedCategory === 'اخرى') {
                     otherNameGroup.style.display = 'block';
                     otherNameInput.required = true;
-                    hiddenNameInput.value = 'اخرى';
-                } else {
-                    hiddenNameInput.value = selectedCategory;
                 }
+                updateHiddenItemName();
             });
 
-            subCategorySelect.addEventListener('change', () => {
-                hiddenNameInput.value = subCategorySelect.value;
-            });
+            subCategorySelect.addEventListener('change', updateHiddenItemName);
+            otherNameInput.addEventListener('input', updateHiddenItemName);
+
 
             // --- Auto-calculate Total Price ---
             const quantityInput = document.getElementById('quantity');
@@ -350,6 +379,35 @@ try {
 
             quantityInput.addEventListener('input', calculateTotal);
             unitPriceInput.addEventListener('input', calculateTotal);
+
+            // --- Filter Logic ---
+            const itemFilter = document.getElementById('item-filter');
+            const tableContainer = document.getElementById('table-container');
+            const initialMessage = document.getElementById('initial-message');
+            const itemRows = document.querySelectorAll('.item-row');
+
+            itemFilter.addEventListener('change', () => {
+                const selectedValue = itemFilter.value;
+
+                if (!selectedValue) {
+                    tableContainer.style.display = 'none';
+                    initialMessage.style.display = 'block';
+                    return;
+                }
+
+                tableContainer.style.display = 'block';
+                initialMessage.style.display = 'none';
+
+                itemRows.forEach(row => {
+                    if (selectedValue === 'all' || row.dataset.itemName === selectedValue) {
+                        row.style.display = ''; // Show the row
+                    } else {
+                        row.style.display = 'none'; // Hide the row
+                    }
+                });
+            });
+             // Set initial name on load
+            updateHiddenItemName();
         }
     });
 </script>
@@ -398,7 +456,12 @@ try {
     .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
     
     .content-area { background: var(--white-color); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); }
-    .table-title { font-size: 1.5rem; margin-bottom: 1.5rem; font-weight: 700; color: #333; }
+    .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
+    .filter-container { display: flex; align-items: center; gap: 0.5rem; }
+    .filter-container label { font-weight: 600; font-size: 0.9rem; }
+    .filter-container select { padding: 0.5rem 0.8rem; border-radius: 6px; border: 1px solid var(--border-color); }
+
     .table-wrapper { overflow-x: auto; }
     .items-table { width: 100%; border-collapse: collapse; }
     .items-table th, .items-table td { padding: 1.25rem 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
