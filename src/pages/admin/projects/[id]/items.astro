@@ -12,7 +12,6 @@ let items = [];
 let error = null;
 let success = null;
 
-// Handle Add Item Form Submission
 if (Astro.request.method === 'POST') {
     try {
         const formData = await Astro.request.formData();
@@ -52,7 +51,6 @@ if (Astro.url.searchParams.get('success') === 'true') {
     success = 'تمت إضافة البند بنجاح!';
 }
 
-// Fetch Project Details and Items
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
     if (projectDoc.exists) {
@@ -105,7 +103,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             {success && <p class="success-message">{success}</p>}
             {error && <p class="error-message">{error}</p>}
 
-            <!-- Add Item Form -->
             <div id="add-item-form" style="display: none;" class="form-container">
                  <h2>نموذج إضافة بند جديد</h2>
                 <form method="POST">
@@ -171,7 +168,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 </form>
             </div>
 
-            <!-- Items Table -->
             <div class="content-area" id="items-content-area">
                 <div class="table-header">
                     <div class="table-controls-left">
@@ -254,7 +250,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             </div>
         </div>
 
-        <!-- Delete Confirmation Modal -->
         <div id="delete-confirm-modal" class="modal-overlay" style="display: none;">
           <div class="modal-content">
             <h4>تأكيد الحذف</h4>
@@ -266,7 +261,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
           </div>
         </div>
 
-        <!-- Save Confirmation Modal -->
         <div id="save-confirm-modal" class="modal-overlay" style="display: none;">
             <div class="modal-content">
               <h4>تأكيد الحفظ</h4>
@@ -284,10 +278,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, deleteDoc } from "firebase/firestore";
-    import { jsPDF } from 'jspdf';
-    import html2canvas from 'html2canvas';
-    import * as XLSX from 'xlsx';
-
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -352,8 +342,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     else if (target.classList.contains('btn-cancel')) handleCancelClick(row);
                     else if (target.classList.contains('btn-save')) handleSaveClick(row);
                     else if (target.classList.contains('btn-print')) handlePrintItem(row);
-                    else if (target.classList.contains('btn-pdf')) handlePdfExport(row);
-                    else if (target.classList.contains('btn-excel')) handleExcelExport(row);
+                    else if (target.classList.contains('btn-pdf')) handlePdfExport(row, target);
+                    else if (target.classList.contains('btn-excel')) handleExcelExport(row, target);
                 });
             }
 
@@ -431,33 +421,36 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 setTimeout(() => { printWindow.print(); }, 500);
             }
 
-            function handlePdfExport(row) {
-                const contentToCapture = document.createElement('div');
-                contentToCapture.innerHTML = createPrintableContent(row, "تفاصيل البند");
-                contentToCapture.style.fontFamily = "'Cairo', sans-serif";
-                contentToCapture.style.direction = "rtl";
-                document.body.appendChild(contentToCapture); 
+            async function handlePdfExport(row, button) {
+                button.disabled = true;
+                button.textContent = 'جارٍ...';
+                try {
+                    const { default: html2canvas } = await import('html2canvas');
+                    const { jsPDF } = await import('jspdf');
+                    
+                    const contentToCapture = document.createElement('div');
+                    contentToCapture.innerHTML = createPrintableContent(row, "تفاصيل البند");
+                    contentToCapture.style.fontFamily = "'Cairo', sans-serif";
+                    contentToCapture.style.direction = "rtl";
+                    document.body.appendChild(contentToCapture);
 
-                html2canvas(contentToCapture, {
-                    scale: 2,
-                    useCORS: true,
-                    onclone: (doc) => {
-                        const style = doc.createElement('style');
-                        style.innerHTML = `
-                         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-                         body, div { font-family: 'Cairo', sans-serif !important; direction: rtl;}
-                         table { width: 100%; border-collapse: collapse; }
-                         h1, h2 { text-align: center; } h1{font-size: 1.2em;} h2{font-size: 1em;}
-                         tr { border-bottom: 1px solid #ddd; }
-                         th, td { padding: 8px; text-align: right; }
-                         th { background-color: #f2f2f2; width: 30%; }`;
-                        doc.body.appendChild(style);
-                    }
-                }).then(canvas => {
+                    const canvas = await html2canvas(contentToCapture, {
+                        scale: 2, useCORS: true,
+                        onclone: (doc) => {
+                            const style = doc.createElement('style');
+                            style.innerHTML = `
+                            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                            body, div { font-family: 'Cairo', sans-serif !important; direction: rtl;}
+                            table { width: 100%; border-collapse: collapse; } h1, h2 { text-align: center; } h1{font-size: 1.2em;} h2{font-size: 1em;}
+                            tr { border-bottom: 1px solid #ddd; } th, td { padding: 8px; text-align: right; }
+                            th { background-color: #f2f2f2; width: 30%; }`;
+                            doc.body.appendChild(style);
+                        }
+                    });
+                    
                     const imgData = canvas.toDataURL('image/png');
                     const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
                     const pdfWidth = pdf.internal.pageSize.getWidth();
-                    const pdfHeight = pdf.internal.pageSize.getHeight();
                     const canvasWidth = canvas.width;
                     const canvasHeight = canvas.height;
                     const ratio = canvasWidth / canvasHeight;
@@ -467,29 +460,44 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     const itemName = row.querySelector('td[data-field="name"]').textContent.trim();
                     pdf.save(`item-${itemName}.pdf`);
                     document.body.removeChild(contentToCapture);
-                });
+                } catch (err) {
+                    console.error("PDF Export Error:", err);
+                    alert("فشل تصدير PDF. يرجى المحاولة مرة أخرى.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = 'تصدير PDF';
+                }
             }
 
-            function handleExcelExport(row) {
-                 const data = [];
-                const headers = [];
-                row.querySelectorAll('td[data-label]').forEach(cell => {
-                    const label = cell.getAttribute('data-label');
-                    if (label === 'إجراءات') return;
-                    headers.push(label);
-                    data.push(cell.textContent.trim());
-                });
+            async function handleExcelExport(row, button) {
+                button.disabled = true;
+                button.textContent = 'جارٍ...';
+                try {
+                    const XLSX = await import('xlsx');
+                    const data = [];
+                    const headers = [];
+                    row.querySelectorAll('td[data-label]').forEach(cell => {
+                        const label = cell.getAttribute('data-label');
+                        if (label === 'إجراءات') return;
+                        headers.push(label);
+                        data.push(cell.textContent.trim());
+                    });
 
-                const dataForSheet = [headers, data];
+                    const dataForSheet = [headers, data];
+                    const ws = XLSX.utils.aoa_to_sheet(dataForSheet);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Item Details");
 
-                const ws = XLSX.utils.aoa_to_sheet(dataForSheet);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Item Details");
-
-                const itemName = row.querySelector('td[data-field="name"]').textContent.trim();
-                XLSX.writeFile(wb, `item-${itemName}.xlsx`);
+                    const itemName = row.querySelector('td[data-field="name"]').textContent.trim();
+                    XLSX.writeFile(wb, `item-${itemName}.xlsx`);
+                } catch (err) {
+                    console.error("Excel Export Error:", err);
+                    alert("فشل تصدير Excel. يرجى المحاولة مرة أخرى.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = 'تصدير Excel';
+                }
             }
-
 
             async function executeSave(row) {
                 const itemId = row.dataset.itemId;
@@ -585,7 +593,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 }
             }
 
-            // Delete Modal Logic
             if (deleteModalCancelBtn) {
                 deleteModalCancelBtn.addEventListener('click', () => {
                     if (deleteModal) deleteModal.style.display = 'none';
@@ -603,8 +610,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         const itemRef = doc(db, 'projects', projectId, 'items', itemId);
                         await deleteDoc(itemRef);
                         if(row) row.remove();
-                         // Note: We are not updating the totals here as it adds complexity.
-                        // A page refresh would be the simplest way to see updated grand totals.
                     } catch (error) {
                         console.error("Error deleting item: ", error);
                         alert("حدث خطأ أثناء محاولة الحذف. يرجى المحاولة مرة أخرى.");
@@ -617,7 +622,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 });
             }
 
-            // Save Modal Logic
             if (saveModalCancelBtn) {
                 saveModalCancelBtn.addEventListener('click', () => {
                     if (saveModal) saveModal.style.display = 'none';
@@ -630,7 +634,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     saveModalConfirmBtn.disabled = true;
                     saveModalConfirmBtn.textContent = 'جاري الحفظ...';
                     await executeSave(itemToSave);
-                    // A page refresh might be needed to update grand total accurately
                     if (saveModal) saveModal.style.display = 'none';
                     itemToSave = null;
                     saveModalConfirmBtn.disabled = false;
@@ -674,7 +677,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             const totalPriceInput = document.getElementById('totalPrice');
             function calculateTotal(){const quantity=parseFloat(quantityInput.value)||0;const unitPrice=parseFloat(unitPriceInput.value)||0;totalPriceInput.value=(quantity*unitPrice).toFixed(2)}if(quantityInput&&unitPriceInput){quantityInput.addEventListener('input',calculateTotal);unitPriceInput.addEventListener('input',calculateTotal);}
 
-            // Filtering and Totals Logic
             const mainCategoryFilter = document.getElementById('main-category-filter');
             const subCategoryFilterGroup = document.getElementById('sub-category-filter-group');
             const subCategoryFilter = document.getElementById('sub-category-filter');
@@ -775,7 +777,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 }
             }
             
-            // Auto-hide success message
             const successMessage = document.querySelector('.success-message');
             if (successMessage) {
                 setTimeout(() => {
@@ -785,8 +786,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         const url = new URL(window.location);
                         url.searchParams.delete('success');
                         history.replaceState(null, '', url.toString());
-                    }, 500); // Corresponds to CSS transition duration
-                }, 5000); // 5 seconds
+                    }, 500);
+                }, 5000);
             }
 
         }
@@ -872,10 +873,9 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .btn-save { background-color: var(--success-color); }
     .btn-cancel { background-color: var(--secondary-color); }
     .btn-print { background-color: var(--primary-color); }
-    .btn-pdf { background-color: #E63946; } /* Custom Red */
-    .btn-excel { background-color: #1D6F42; } /* Custom Green */
+    .btn-pdf { background-color: #E63946; } 
+    .btn-excel { background-color: #1D6F42; }
 
-    /* Modal Styles */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; }
     .modal-content { background: #fff; padding: 2.5rem; border-radius: 12px; width: 90%; max-width: 450px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
     .modal-content h4 { margin-top: 0; font-size: 1.5rem; color: #333; font-weight: 800; }
@@ -892,7 +892,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
         .items-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; text-align: right; }
         .actions-cell { justify-content: flex-start; padding-left: 50%; }
         .actions-cell .action-buttons-view { justify-content: flex-start; }
-        .table-header { align-items: stretch; } /* For better mobile layout */
+        .table-header { align-items: stretch; } 
         .totals-container { justify-content: space-around; width: 100%; }
         .total-box { flex-grow: 1; text-align: center; }
     }

@@ -156,7 +156,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     .installments-section { background: var(--white-bg); padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); }
     .installments-section h3 { margin: 0 0 1.5rem 0; font-size: 1.5rem; color: var(--primary-color); }
     
-    /* Responsive Table Styles */
     .table-responsive-wrapper { overflow-x: auto; }
     #installments-table { width: 100%; border-collapse: collapse; }
     #installments-table th, #installments-table td { padding: 1rem; text-align: right; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
@@ -183,10 +182,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     import { auth, db } from '../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
-    import { jsPDF } from "jspdf";
-    import autoTable from "jspdf-autotable";
-    import * as XLSX from 'xlsx';
-    import html2canvas from 'html2canvas';
 
     let currentProjectId = null;
     let currentCustomerName = null;
@@ -224,7 +219,6 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         document.getElementById('print-btn').addEventListener('click', () => window.print());
         document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
         document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
-
 
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
@@ -314,49 +308,74 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         }
     }
 
-    function exportPDF() {
-    const contractDetails = document.getElementById('contract-details-content');
-    const customerName = document.getElementById('info-customer-name').textContent || 'contract';
+    async function exportPDF() {
+        const { jsPDF } = await import('jspdf');
+        const { default: html2canvas } = await import('html2canvas');
+        // jspdf-autotable is not used in the original function, so we don't import it.
 
-    html2canvas(contractDetails, {
-        scale: 2, // Improve quality
-        useCORS: true,
-        onclone: (document) => {
-            // You can modify the cloned document here before the screenshot is taken
-            // For example, hide buttons that you don't want in the PDF
-            const actionButtons = document.querySelectorAll('.actions-cell');
-            actionButtons.forEach(btn => btn.style.display = 'none');
-             const actionHeader = document.querySelector('#installments-table th:last-child');
-            if(actionHeader) actionHeader.style.display = 'none';
+        const contractDetails = document.getElementById('contract-details-content');
+        const customerName = document.getElementById('info-customer-name').textContent || 'contract';
+
+        const button = document.getElementById('export-pdf-btn');
+        button.disabled = true;
+        button.textContent = 'جارٍ التصدير...';
+
+        try {
+            const canvas = await html2canvas(contractDetails, {
+                scale: 2, 
+                useCORS: true,
+                onclone: (document) => {
+                    const actionButtons = document.querySelectorAll('.actions-cell');
+                    actionButtons.forEach(btn => btn.style.display = 'none');
+                    const actionHeader = document.querySelector('#installments-table th:last-child');
+                    if(actionHeader) actionHeader.style.display = 'none';
+                }
+            });
+            
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const height = pdfWidth / ratio;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
+            pdf.save(`${customerName}-contract.pdf`);
+        } catch (err) {
+            console.error("PDF Export Error:", err);
+            alert('حدث خطأ أثناء تصدير ملف PDF.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'تصدير PDF';
         }
-    }).then(canvas => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({
-            orientation: 'p',
-            unit: 'mm',
-            format: 'a4'
-        });
-
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = pdf.internal.pageSize.getHeight();
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-        const ratio = canvasWidth / canvasHeight;
-        const height = pdfWidth / ratio;
-
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
-        pdf.save(`${customerName}-contract.pdf`);
-    });
-}
-
-
-    function exportExcel() {
-        const table = document.getElementById('installments-table');
-        const customerName = document.getElementById('info-customer-name').textContent;
-        const wb = XLSX.utils.table_to_book(table, {sheet:"Installments"});
-        XLSX.writeFile(wb, `installments-${customerName}.xlsx`);
     }
 
+    async function exportExcel() {
+        const XLSX = await import('xlsx');
+        
+        const table = document.getElementById('installments-table');
+        const customerName = document.getElementById('info-customer-name').textContent;
+        const button = document.getElementById('export-excel-btn');
+        button.disabled = true;
+        button.textContent = 'جارٍ التصدير...';
+
+        try {
+            const wb = XLSX.utils.table_to_book(table, {sheet:"Installments"});
+            XLSX.writeFile(wb, `installments-${customerName}.xlsx`);
+        } catch (err) {
+            console.error("Excel Export Error:", err);
+            alert('حدث خطأ أثناء تصدير ملف Excel.');
+        } finally {
+            button.disabled = false;
+            button.textContent = 'تصدير Excel';
+        }
+    }
 
     async function handleDeleteInstallment(button) {
         const installmentId = button.dataset.id;
