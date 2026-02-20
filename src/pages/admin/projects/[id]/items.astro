@@ -172,7 +172,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             </div>
 
             <!-- Items Table -->
-            <div class="content-area">
+            <div class="content-area" id="items-content-area">
                 <div class="table-header">
                     <div class="table-controls-left">
                         <h2 class="table-title">قائمة البنود الحالية</h2>
@@ -284,6 +284,10 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, deleteDoc } from "firebase/firestore";
+    import { jsPDF } from 'jspdf';
+    import html2canvas from 'html2canvas';
+    import * as XLSX from 'xlsx';
+
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -379,12 +383,36 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 if(saveModal) saveModal.style.display = 'flex';
             }
             
-            // --- ITEM-SPECIFIC EXPORT/PRINT FUNCTIONS ---
-            function handlePrintItem(row) {
+            function createPrintableContent(row, title) {
                 const projectName = document.querySelector('h1').textContent || "تفاصيل البند";
                 const cells = row.querySelectorAll('td[data-label]');
-                let printContent = `
-                    <style>
+                let content = `
+                    <h1>${projectName}</h1>
+                    <h2>${title}</h2>
+                    <table>
+                        <tbody>`;
+
+                cells.forEach(cell => {
+                    const label = cell.getAttribute('data-label');
+                    if (label === 'إجراءات') return; 
+                    const value = cell.dataset.originalValue || cell.textContent.trim();
+                    content += `<tr><th>${label}</th><td>${value}</td></tr>`;
+                });
+
+                content += `</tbody></table>`;
+                return content;
+            }
+
+            function handlePrintItem(row) {
+                const printContent = createPrintableContent(row, "تفاصيل البند");
+                const printWindow = window.open('', '', 'height=700,width=800');
+                
+                if (!printWindow) {
+                    alert('فشل فتح نافذة الطباعة. يرجى التأكد من السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع.');
+                    return;
+                }
+                
+                const styles = `<style>
                         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
                         body { font-family: 'Cairo', sans-serif; direction: rtl; margin: 20px; }
                         h1, h2 { text-align: center; color: #333; }
@@ -395,44 +423,72 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         th, td { padding: 12px 15px; text-align: right; }
                         th { background-color: #f8f8f8; font-weight: 700; color: #555; width: 30%; }
                         @media print { body { -webkit-print-color-adjust: exact; } h1 {color: #000;} }
-                    </style>
-                    <h1>${projectName}</h1>
-                    <h2>تفاصيل البند</h2>
-                    <table>
-                        <tbody>`;
+                    </style>`;
 
-                cells.forEach(cell => {
-                    const label = cell.getAttribute('data-label');
-                    if (label === 'إجراءات') return; // Skip the actions cell
-                    const value = cell.dataset.originalValue || cell.textContent.trim();
-                    printContent += `<tr><th>${label}</th><td>${value}</td></tr>`;
-                });
-
-                printContent += `</tbody></table>`;
-                
-                const printWindow = window.open('', '', 'height=700,width=800');
-                
-                if (!printWindow) {
-                    alert('فشل فتح نافذة الطباعة. يرجى التأكد من السماح بالنوافذ المنبثقة (Pop-ups) لهذا الموقع.');
-                    return;
-                }
-
-                printWindow.document.write(printContent);
+                printWindow.document.write(styles + printContent);
                 printWindow.document.close();
                 printWindow.focus();
                 setTimeout(() => { printWindow.print(); }, 500);
             }
 
             function handlePdfExport(row) {
-                alert('سيتم تنفيذ خاصية تصدير هذا البند كـ PDF قريبًا! عند الموافقة سيتم تركيب المكتبة المطلوبة.');
-                console.log('Exporting row to PDF:', row.dataset.itemId);
+                const contentToCapture = document.createElement('div');
+                contentToCapture.innerHTML = createPrintableContent(row, "تفاصيل البند");
+                contentToCapture.style.fontFamily = "'Cairo', sans-serif";
+                contentToCapture.style.direction = "rtl";
+                document.body.appendChild(contentToCapture); 
+
+                html2canvas(contentToCapture, {
+                    scale: 2,
+                    useCORS: true,
+                    onclone: (doc) => {
+                        const style = doc.createElement('style');
+                        style.innerHTML = `
+                         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+                         body, div { font-family: 'Cairo', sans-serif !important; direction: rtl;}
+                         table { width: 100%; border-collapse: collapse; }
+                         h1, h2 { text-align: center; } h1{font-size: 1.2em;} h2{font-size: 1em;}
+                         tr { border-bottom: 1px solid #ddd; }
+                         th, td { padding: 8px; text-align: right; }
+                         th { background-color: #f2f2f2; width: 30%; }`;
+                        doc.body.appendChild(style);
+                    }
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                    const pdfWidth = pdf.internal.pageSize.getWidth();
+                    const pdfHeight = pdf.internal.pageSize.getHeight();
+                    const canvasWidth = canvas.width;
+                    const canvasHeight = canvas.height;
+                    const ratio = canvasWidth / canvasHeight;
+                    const height = pdfWidth / ratio;
+
+                    pdf.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, height - 10);
+                    const itemName = row.querySelector('td[data-field="name"]').textContent.trim();
+                    pdf.save(`item-${itemName}.pdf`);
+                    document.body.removeChild(contentToCapture);
+                });
             }
 
             function handleExcelExport(row) {
-                alert('سيتم تنفيذ خاصية تصدير هذا البند كـ Excel قريبًا! عند الموافقة سيتم تركيب المكتبة المطلوبة.');
-                console.log('Exporting row to Excel:', row.dataset.itemId);
+                 const data = [];
+                const headers = [];
+                row.querySelectorAll('td[data-label]').forEach(cell => {
+                    const label = cell.getAttribute('data-label');
+                    if (label === 'إجراءات') return;
+                    headers.push(label);
+                    data.push(cell.textContent.trim());
+                });
+
+                const dataForSheet = [headers, data];
+
+                const ws = XLSX.utils.aoa_to_sheet(dataForSheet);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Item Details");
+
+                const itemName = row.querySelector('td[data-field="name"]').textContent.trim();
+                XLSX.writeFile(wb, `item-${itemName}.xlsx`);
             }
-            // --- END FUNCTIONS ---
 
 
             async function executeSave(row) {

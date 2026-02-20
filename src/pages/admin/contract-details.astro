@@ -19,6 +19,9 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             <div class="details-header">
                 <h1 id="customer-name-header">تفاصيل العقد</h1>
                 <div class="header-buttons">
+                    <button id="print-btn" class="btn btn-info">طباعة</button>
+                    <button id="export-pdf-btn" class="btn btn-info">تصدير PDF</button>
+                    <button id="export-excel-btn" class="btn btn-info">تصدير Excel</button>
                     <a id="edit-contract-btn" href="#" class="btn btn-warning">تعديل العقد</a>
                     <button id="delete-contract-btn" class="btn btn-danger">حذف العقد</button>
                     <a id="back-link" href="#" class="btn btn-secondary">&larr; العودة لقائمة العقود</a>
@@ -124,6 +127,8 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     .btn-danger:hover { background-color: #a93226; }
     .btn-warning { background-color: var(--warning-color); color: white; }
     .btn-warning:hover { background-color: #d68910; }
+    .btn-info { background-color: var(--info-color); color: white; }
+    .btn-info:hover { background-color: #2980b9; }
     .btn-edit, .btn-save { font-size: 0.9rem; padding: 0.5rem 1rem; }
     .btn-edit { background-color: var(--info-color); color: white; }
     .btn-edit:hover { background-color: #2980b9; }
@@ -178,6 +183,10 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
     import { auth, db } from '../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, collection, query, where, getDocs, writeBatch, Timestamp, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
+    import { jsPDF } from "jspdf";
+    import autoTable from "jspdf-autotable";
+    import * as XLSX from 'xlsx';
+    import html2canvas from 'html2canvas';
 
     let currentProjectId = null;
     let currentCustomerName = null;
@@ -209,6 +218,11 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
         if(deleteBtn) {
             deleteBtn.addEventListener('click', handleDeleteContract);
         }
+
+        document.getElementById('print-btn').addEventListener('click', () => window.print());
+        document.getElementById('export-pdf-btn').addEventListener('click', exportPDF);
+        document.getElementById('export-excel-btn').addEventListener('click', exportExcel);
+
 
         const authLoadingMessage = document.getElementById('auth-loading-message');
         const loginContainer = document.getElementById('admin-login-container');
@@ -297,6 +311,50 @@ import PartialPaymentModal from '../../components/PartialPaymentModal.astro';
             errorDisplay.style.display = 'block';
         }
     }
+
+    function exportPDF() {
+    const contractDetails = document.getElementById('contract-details-content');
+    const customerName = document.getElementById('info-customer-name').textContent || 'contract';
+
+    html2canvas(contractDetails, {
+        scale: 2, // Improve quality
+        useCORS: true,
+        onclone: (document) => {
+            // You can modify the cloned document here before the screenshot is taken
+            // For example, hide buttons that you don't want in the PDF
+            const actionButtons = document.querySelectorAll('.actions-cell');
+            actionButtons.forEach(btn => btn.style.display = 'none');
+             const actionHeader = document.querySelector('#installments-table th:last-child');
+            if(actionHeader) actionHeader.style.display = 'none';
+        }
+    }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const ratio = canvasWidth / canvasHeight;
+        const height = pdfWidth / ratio;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height);
+        pdf.save(`${customerName}-contract.pdf`);
+    });
+}
+
+
+    function exportExcel() {
+        const table = document.getElementById('installments-table');
+        const customerName = document.getElementById('info-customer-name').textContent;
+        const wb = XLSX.utils.table_to_book(table, {sheet:"Installments"});
+        XLSX.writeFile(wb, `installments-${customerName}.xlsx`);
+    }
+
 
     async function handleDeleteInstallment(button) {
         const installmentId = button.dataset.id;

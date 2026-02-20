@@ -102,3 +102,15 @@ This application is a web-based project management dashboard named "Elemannet". 
 3.  **[Create New Page]** Created a new, placeholder page at `src/pages/admin/projects/[id]/items.astro`.
 4.  **[Implement Page Structure]** The new `items.astro` page includes the standard layout, authentication checks, a title, and a link to return to the main project details page. It currently contains a placeholder message indicating that the feature will be implemented soon.
 5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the addition of the new page and navigation link.
+
+## 5. Current Task: Add Print and Export Buttons
+
+### Plan & Steps for the requested change:
+
+1.  **[Add Buttons to UI]** Added "Print", "Export PDF", and "Export Excel" buttons to the header of the `src/pages/admin/contract-details.astro` page.
+2.  **[Install Dependencies]** Installed the `jspdf`, `jspdf-autotable`, and `xlsx` libraries via npm to handle PDF and Excel exporting.
+3.  **[Implement Functionality]**
+    -   Added a `click` event listener to the "Print" button that triggers the browser's native `window.print()` function.
+    -   Created an `exportPDF` function that uses `jspdf` and `jspdf-autotable` to generate a PDF of the installments table.
+    -   Created an `exportExcel` function that uses `xlsx` to generate an Excel file from the installments table.
+4.  **[Update Blueprint]** Updated this `blueprint.md` file to document the new features and the steps taken to implement them.

@@ -172,7 +172,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-danger:hover { background-color: #c9302c; }
   .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;}
 
-  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom, .btn-suppliers-custom {
+  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom {
       background-color: transparent;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
@@ -188,8 +188,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
   .btn-installments-custom { color: #28a745; border: 1px solid #28a745; }
   .btn-installments-custom:hover { background-color: #28a745; color: #fff; }
-  .btn-suppliers-custom { color: #ffc107; border: 1px solid #ffc107; }
-  .btn-suppliers-custom:hover { background-color: #ffc107; color: #fff; }
 
   /* Modal Styles */
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 1000; visibility: hidden; opacity: 0; transition: opacity 0.3s ease; overflow-y: auto; padding: 2rem 1rem; display: flex; align-items: center; justify-content: center; }
@@ -324,7 +322,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
               <td data-label="المشرفون">${supervisors}</td>
               <td data-label="الإجراءات" class="btn-action-cell">
                 <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
-                <a href="/admin/suppliers?projectId=${doc.id}" class="btn-suppliers-custom">الموردين</a>
                 <button class="btn btn-edit-custom">تعديل</button>
                 <button class="btn btn-delete-custom">حذف</button>
               </td>
@@ -353,8 +350,6 @@ import AdminLogin from '../../components/AdminLogin.astro';
         const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
         openEditModal(projectData);
       } else if (e.target.closest('.btn-installments-custom')) {
-        e.stopPropagation();
-      } else if (e.target.closest('.btn-suppliers-custom')) {
         e.stopPropagation();
       } else {
         const projectId = row.dataset.id;
