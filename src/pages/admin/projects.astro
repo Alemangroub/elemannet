@@ -1,7 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import AdminLogin from '../../components/AdminLogin.astro';
---- 
+---
 
 <Layout title="إدارة المشروعات">
   <div id="auth-loading-message" class="auth-container">
@@ -20,6 +20,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
         <h1>إدارة المشروعات</h1>
         <div class="header-actions">
           <a href="/admin/add-project" class="btn btn-primary">+ إضافة مشروع جديد</a>
+          <a href="/admin/archived-projects" class="btn btn-secondary">المشاريع المؤرشفة</a>
           <button id="logout-button" class="btn btn-danger">تسجيل الخروج</button>
         </div>
       </div>
@@ -55,6 +56,18 @@ import AdminLogin from '../../components/AdminLogin.astro';
         <div class="modal-actions">
           <button id="cancel-delete-btn" class="btn btn-secondary">إلغاء</button>
           <button id="confirm-delete-btn" class="btn btn-danger">تأكيد الحذف</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Archive Confirmation Modal -->
+    <div id="archive-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>تأكيد الأرشفة</h3>
+        <p>هل أنت متأكد من أنك تريد أرشفة هذا المشروع؟</p>
+        <div class="modal-actions">
+          <button id="cancel-archive-btn" class="btn btn-secondary">إلغاء</button>
+          <button id="confirm-archive-btn" class="btn btn-warning">تأكيد الأرشفة</button>
         </div>
       </div>
     </div>
@@ -170,9 +183,11 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-secondary:hover { background-color: #5a6268; }
   .btn-danger { background-color: #d9534f; border-color: #d9534f; }
   .btn-danger:hover { background-color: #c9302c; }
+   .btn-warning { background-color: #f0ad4e; border-color: #eea236; color: #fff;}
+  .btn-warning:hover { background-color: #ec971f; border-color: #d58512; }
   .btn-action-cell { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;}
 
-  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom {
+  .btn-delete-custom, .btn-edit-custom, .btn-installments-custom, .btn-archive-custom {
       background-color: transparent;
       padding: 0.4rem 0.8rem;
       font-size: 0.85rem;
@@ -186,6 +201,8 @@ import AdminLogin from '../../components/AdminLogin.astro';
   .btn-delete-custom:hover { background-color: #d9534f; color: #fff; }
   .btn-edit-custom { color: #3f51b5; border: 1px solid #3f51b5; }
   .btn-edit-custom:hover { background-color: #3f51b5; color: #fff; }
+  .btn-archive-custom { color: #f0ad4e; border: 1px solid #f0ad4e; }
+  .btn-archive-custom:hover { background-color: #f0ad4e; color: #fff; }
   .btn-installments-custom { color: #28a745; border: 1px solid #28a745; }
   .btn-installments-custom:hover { background-color: #28a745; color: #fff; }
 
@@ -283,21 +300,26 @@ import AdminLogin from '../../components/AdminLogin.astro';
     const projectsList = document.getElementById('projects-list');
     const noProjectsMessage = document.getElementById('no-projects-message');
     const tableWrapper = document.querySelector('.table-wrapper');
-    // Delete Modal
+    // Modals
     const deleteModal = document.getElementById('delete-modal');
     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
     const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-    let projectIdToDelete = null;
-    // Edit Modal
     const editModal = document.getElementById('edit-modal');
     const editForm = document.getElementById('edit-form');
     const cancelEditBtn = document.getElementById('cancel-edit-btn');
+    const archiveModal = document.getElementById('archive-modal');
+    const confirmArchiveBtn = document.getElementById('confirm-archive-btn');
+    const cancelArchiveBtn = document.getElementById('cancel-archive-btn');
+
     const projectNameInput = document.getElementById('edit-project-name');
     const projectAddressInput = document.getElementById('edit-project-address');
     const currentSupervisorsList = document.getElementById('current-supervisors-list');
     const addSupervisorSelect = document.getElementById('add-supervisor-select');
     const addSupervisorBtn = document.getElementById('add-supervisor-btn');
+    
+    let projectIdToDelete = null;
     let projectIdToEdit = null;
+    let projectIdToArchive = null;
     let allSupervisors = [];
 
     // --- DATA FETCHING & RENDERING ---
@@ -307,12 +329,16 @@ import AdminLogin from '../../components/AdminLogin.astro';
       allSupervisors = querySnapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }));
     }
 
-    const projectsQuery = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+    const projectsQuery = query(
+        collection(db, 'projects'), 
+        orderBy('createdAt', 'desc')
+    );
     onSnapshot(projectsQuery, (snapshot) => {
-      tableWrapper.style.display = snapshot.empty ? 'none' : '';
-      noProjectsMessage.textContent = snapshot.empty ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
+      const docs = snapshot.docs.filter(doc => !doc.data().archived);
+      tableWrapper.style.display = docs.length === 0 ? 'none' : '';
+      noProjectsMessage.textContent = docs.length === 0 ? 'لم تتم إضافة أي مشاريع بعد. انقر على زر "إضافة مشروع جديد" للبدء.' : '';
       if (projectsList) {
-        projectsList.innerHTML = snapshot.docs.map(doc => {
+        projectsList.innerHTML = docs.map(doc => {
           const project = doc.data();
           const supervisors = project.supervisors ? project.supervisors.map(s => s.name).join(', ') : '-';
           return `
@@ -323,6 +349,7 @@ import AdminLogin from '../../components/AdminLogin.astro';
               <td data-label="الإجراءات" class="btn-action-cell">
                 <a href="/admin/project-installments?projectId=${doc.id}" class="btn btn-installments-custom">الأقساط</a>
                 <button class="btn btn-edit-custom">تعديل</button>
+                <button class="btn btn-archive-custom">أرشفة</button>
                 <button class="btn btn-delete-custom">حذف</button>
               </td>
             </tr>
@@ -349,6 +376,10 @@ import AdminLogin from '../../components/AdminLogin.astro';
         projectIdToEdit = row.dataset.id;
         const projectData = JSON.parse(row.dataset.project.replace(/&apos;/g, "'"));
         openEditModal(projectData);
+      } else if (e.target.classList.contains('btn-archive-custom')) {
+        e.stopPropagation();
+        projectIdToArchive = row.dataset.id;
+        showModal(archiveModal);
       } else if (e.target.closest('.btn-installments-custom')) {
         e.stopPropagation();
       } else {
@@ -367,6 +398,20 @@ import AdminLogin from '../../components/AdminLogin.astro';
       if (projectIdToDelete) {
         try { await deleteDoc(doc(db, 'projects', projectIdToDelete)); } catch (error) { console.error("Error deleting document: ", error); }
         hideDeleteModal();
+      }
+    });
+    
+    // --- ARCHIVE PROJECT LOGIC ---
+    function hideArchiveModal() { hideModal(archiveModal); projectIdToArchive = null; }
+    cancelArchiveBtn.addEventListener('click', hideArchiveModal);
+    archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) hideArchiveModal(); });
+    confirmArchiveBtn.addEventListener('click', async () => {
+      if (projectIdToArchive) {
+        try {
+          const projectRef = doc(db, 'projects', projectIdToArchive);
+          await updateDoc(projectRef, { archived: true });
+        } catch (error) { console.error("Error archiving document: ", error); }
+        hideArchiveModal();
       }
     });
 
