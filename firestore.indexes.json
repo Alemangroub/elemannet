@@ -27,6 +27,24 @@
                 "order": "DESCENDING"
               }
             ]
+          },
+          {
+            "collectionGroup": "projects",
+            "queryScope": "COLLECTION",
+            "fields": [
+              {
+                "fieldPath": "archived",
+                "order": "ASCENDING"
+              },
+              {
+                "fieldPath": "createdAt",
+                "order": "DESCENDING"
+              },
+              {
+                "fieldPath": "__name__",
+                "order": "DESCENDING"
+              }
+            ]
           }
         ]
       }
