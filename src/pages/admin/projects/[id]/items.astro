@@ -76,6 +76,7 @@ try {
     error = "حدث خطأ أثناء تحميل بيانات المشروع.";
 }
 
+const grandTotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
 const uniqueItemNames = [...new Set(items.map(item => item.name))];
 ---
 <Layout title={`بنود المشروع: ${project ? project.name : ''}`}>
@@ -173,18 +174,30 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             <!-- Items Table -->
             <div class="content-area">
                 <div class="table-header">
-                    <h2 class="table-title">قائمة البنود الحالية</h2>
-                    <div class="filter-container">
-                        <div class="form-group">
-                            <label for="main-category-filter">الفئة الرئيسية:</label>
-                            <select id="main-category-filter">
-                                <option value="" disabled selected>-- اختر فئة --</option>
-                                <option value="all">عرض الكل</option>
-                            </select>
+                    <div class="table-controls-left">
+                        <h2 class="table-title">قائمة البنود الحالية</h2>
+                        <div class="filter-container">
+                            <div class="form-group">
+                                <label for="main-category-filter">الفئة الرئيسية:</label>
+                                <select id="main-category-filter">
+                                    <option value="" disabled selected>-- اختر فئة --</option>
+                                    <option value="all">عرض الكل</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="sub-category-filter-group" style="display: none;">
+                                <label for="sub-category-filter">البند الفرعي:</label>
+                                <select id="sub-category-filter"></select>
+                            </div>
                         </div>
-                        <div class="form-group" id="sub-category-filter-group" style="display: none;">
-                            <label for="sub-category-filter">البند الفرعي:</label>
-                            <select id="sub-category-filter"></select>
+                    </div>
+                    <div class="table-controls-right totals-container">
+                        <div class="total-box">
+                            <span class="total-label">إجمالي البنود المفلترة:</span>
+                            <span id="filtered-total" class="total-value">0.00 ج.م</span>
+                        </div>
+                        <div class="total-box grand-total-box">
+                            <span class="total-label">إجمالي كل البنود:</span>
+                            <span id="grand-total" class="total-value">{grandTotal.toFixed(2)} ج.م</span>
                         </div>
                     </div>
                 </div>
@@ -207,7 +220,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                                 </thead>
                                 <tbody id="items-table-body">
                                     {items.map(item => (
-                                        <tr class="item-row" data-item-id={item.id} data-item-name={item.name} data-project-id={project.id} id={`item-row-${item.id}`}>
+                                        <tr class="item-row" data-item-id={item.id} data-item-name={item.name} data-project-id={project.id} id={`item-row-${item.id}`} data-total-price={item.totalPrice}>
 										<td data-label="التاريخ" data-field="createdAt">{item.createdAt}</td>
 										<td data-label="اسم البند" data-field="name">{item.name}</td>
 										<td data-label="اسم الشخص/الجهة" data-field="personName">{item.personName || '-'}</td>
@@ -534,6 +547,8 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         const itemRef = doc(db, 'projects', projectId, 'items', itemId);
                         await deleteDoc(itemRef);
                         if(row) row.remove();
+                         // Note: We are not updating the totals here as it adds complexity.
+                        // A page refresh would be the simplest way to see updated grand totals.
                     } catch (error) {
                         console.error("Error deleting item: ", error);
                         alert("حدث خطأ أثناء محاولة الحذف. يرجى المحاولة مرة أخرى.");
@@ -559,6 +574,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     saveModalConfirmBtn.disabled = true;
                     saveModalConfirmBtn.textContent = 'جاري الحفظ...';
                     await executeSave(itemToSave);
+                    // A page refresh might be needed to update grand total accurately
                     if (saveModal) saveModal.style.display = 'none';
                     itemToSave = null;
                     saveModalConfirmBtn.disabled = false;
@@ -602,11 +618,27 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
             const totalPriceInput = document.getElementById('totalPrice');
             function calculateTotal(){const quantity=parseFloat(quantityInput.value)||0;const unitPrice=parseFloat(unitPriceInput.value)||0;totalPriceInput.value=(quantity*unitPrice).toFixed(2)}if(quantityInput&&unitPriceInput){quantityInput.addEventListener('input',calculateTotal);unitPriceInput.addEventListener('input',calculateTotal);}
 
+            // Filtering and Totals Logic
             const mainCategoryFilter = document.getElementById('main-category-filter');
             const subCategoryFilterGroup = document.getElementById('sub-category-filter-group');
             const subCategoryFilter = document.getElementById('sub-category-filter');
             const tableContainer = document.getElementById('table-container');
             const initialMessage = document.getElementById('initial-message');
+            const filteredTotalEl = document.getElementById('filtered-total');
+
+            function updateFilteredTotal() {
+                const allRows = document.querySelectorAll('#items-table-body .item-row');
+                let filteredTotal = 0;
+                allRows.forEach(row => {
+                    if (row.style.display !== 'none') {
+                        const price = parseFloat(row.dataset.totalPrice) || 0;
+                        filteredTotal += price;
+                    }
+                });
+                if (filteredTotalEl) {
+                    filteredTotalEl.textContent = `${filteredTotal.toFixed(2)} ج.م`;
+                }
+            }
             
             if(mainCategoryFilter) {
                 const allRows = Array.from(document.querySelectorAll('.item-row'));
@@ -626,6 +658,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         if(tableContainer) tableContainer.style.display = selectedMain === 'all' ? 'block' : 'none';
                         if(initialMessage) initialMessage.style.display = selectedMain === 'all' ? 'none' : 'block';
                         allRows.forEach(row => row.style.display = '');
+                        updateFilteredTotal();
                         return;
                     }
 
@@ -654,6 +687,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                         allRows.forEach(row => {
                             row.style.display = row.dataset.itemName === selectedMain ? '' : 'none';
                         });
+                         updateFilteredTotal();
                     }
                 });
 
@@ -680,9 +714,25 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                             }
                             row.style.display = show ? '' : 'none';
                         });
+                        updateFilteredTotal();
                     });
                 }
             }
+            
+            // Auto-hide success message
+            const successMessage = document.querySelector('.success-message');
+            if (successMessage) {
+                setTimeout(() => {
+                    successMessage.style.opacity = '0';
+                    setTimeout(() => {
+                        successMessage.remove();
+                        const url = new URL(window.location);
+                        url.searchParams.delete('success');
+                        history.replaceState(null, '', url.toString());
+                    }, 500); // Corresponds to CSS transition duration
+                }, 5000); // 5 seconds
+            }
+
         }
     });
 </script>
@@ -718,7 +768,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .btn-logout { background-color: var(--danger-color); color: white;}
     .btn-danger { background-color: var(--danger-color); color: var(--white-color); }
 
-    .success-message, .error-message { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; }
+    .success-message, .error-message { padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; text-align: center; font-weight: 600; transition: opacity 0.5s ease-out; }
     .success-message { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
     .error-message { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
     
@@ -733,9 +783,19 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .form-actions { display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; }
     
     .content-area { background: var(--white-color); border-radius: 12px; padding: 2rem; box-shadow: var(--shadow); }
-    .table-header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem;}
+    
+    .table-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; }
+    .table-controls-left { display: flex; flex-direction: column; gap: 1rem; flex-grow: 1; }
     .table-title { font-size: 1.5rem; font-weight: 700; color: #333; margin: 0; }
     .filter-container { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap;}
+    
+    .totals-container { display: flex; gap: 1rem; flex-wrap: wrap; align-self: flex-end; }
+    .total-box { background-color: var(--table-header-bg); padding: 0.75rem 1.25rem; border-radius: 8px; text-align: right; border: 1px solid var(--border-color); }
+    .total-box.grand-total-box { background-color: #e8f0fe; border-color: #a8c5ff; }
+    .total-label { display: block; color: var(--secondary-color); font-size: 0.9rem; margin-bottom: 0.25rem; font-weight: 500; }
+    .total-value { display: block; font-size: 1.4rem; font-weight: 700; }
+    .grand-total-box .total-value { color: #0b57d0; }
+    #filtered-total { color: #333; }
     
     .table-wrapper { overflow-x: auto; }
     .items-table { width: 100%; border-collapse: collapse; }
@@ -766,6 +826,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .modal-content p { margin-bottom: 1rem; color: #555; font-size: 1.1rem; }
     .modal-actions { display: flex; justify-content: center; gap: 1rem; margin-top: 2rem; }
     .modal-actions .btn { font-size: 1rem; padding: 0.7rem 1.5rem; }
+    .modal-actions .btn-danger { background-color: var(--danger-color) !important; color: var(--white-color) !important; }
 
     @media (max-width: 992px) {
         .items-table thead { display: none; }
@@ -775,6 +836,9 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
         .items-table td::before { content: attr(data-label); position: absolute; left: 1rem; width: 40%; padding-right: 10px; font-weight: 700; text-align: right; }
         .actions-cell { justify-content: flex-start; padding-left: 50%; }
         .actions-cell .action-buttons-view { justify-content: flex-start; }
+        .table-header { align-items: stretch; } /* For better mobile layout */
+        .totals-container { justify-content: space-around; width: 100%; }
+        .total-box { flex-grow: 1; text-align: center; }
     }
 
     .auth-container { display: flex; align-items: center; justify-content: center; min-height: 100vh; width: 100%; }
