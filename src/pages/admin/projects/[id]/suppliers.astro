@@ -52,8 +52,39 @@ try {
 
                     <!-- Imports List -->
                     <div class="imports-list-container">
-                        <h2>قائمة الواردات</h2>
-                        <div class="table-wrapper">
+                        <div class="list-header">
+                            <div class="title-and-summaries">
+                                <h2>قائمة الواردات</h2>
+                                <div class="summaries-inline">
+                                    <div class="summary-card-inline" id="grand-total-card">
+                                        <h5>الإجمالي الكلي</h5>
+                                        <p id="grand-total-amount">0.00</p>
+                                    </div>
+                                    <div class="summary-card-inline" id="filtered-total-card" style="display: none;">
+                                        <h5 id="filtered-total-label">إجمالي الصنف</h5>
+                                        <p id="filtered-total-amount">0.00</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="filter-container">
+                                <label for="category-filter">فلترة حسب الصنف:</label>
+                                <select id="category-filter">
+                                    <option value="none" selected>-- اختر صنفًا --</option>
+                                    <option value="all">عرض الكل</option>
+                                    <option value="حديد">حديد</option>
+                                    <option value="اسمنت">اسمنت</option>
+                                    <option value="رمله">رمله</option>
+                                    <option value="زلط">زلط</option>
+                                    <option value="طوب">طوب</option>
+                                    <option value="كهرباء">كهرباء</option>
+                                    <option value="سباكة">سباكة</option>
+                                    <option value="رخام">رخام</option>
+                                    <option value="دهانات">دهانات</option>
+                                    <option value="اخري">أصناف أخرى</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="table-wrapper" style="display: none;">
                         <table id="imports-table">
                             <thead>
                             <tr>
@@ -70,7 +101,7 @@ try {
                             </tbody>
                         </table>
                         </div>
-                        <p id="no-imports-message">جاري تحميل الواردات...</p>
+                        <p id="no-imports-message">يرجى اختيار صنف لعرض الواردات.</p>
                     </div>
                 </>
             ) : (
@@ -163,6 +194,7 @@ try {
 
     let projectId = "{id}";
     let currentEditImportId = null;
+    let allImportsData = []; // Cache for all imports data
     const predefinedCategories = ["حديد", "اسمنت", "رمله", "زلط", "طوب", "كهرباء", "سباكة", "رخام", "دهانات"];
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -320,24 +352,107 @@ try {
                 }
             });
         }
+
+        const filterSelect = document.getElementById('category-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', applyFilter);
+        }
+    }
+
+    function calculateAndDisplayGrandTotal() {
+        const grandTotalElement = document.getElementById('grand-total-amount');
+        if (!grandTotalElement) return;
+
+        const grandTotal = allImportsData.reduce((sum, imp) => sum + (imp.price || 0), 0);
+        grandTotalElement.textContent = grandTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+    }
+
+    function applyFilter() {
+        const filterSelect = document.getElementById('category-filter');
+        const selectedCategory = filterSelect.value;
+        const rows = importsList.querySelectorAll('tr');
+        const noImportsMessage = document.getElementById('no-imports-message');
+        const tableWrapper = document.querySelector('.table-wrapper');
+        
+        const filteredTotalCard = document.getElementById('filtered-total-card');
+        const filteredTotalLabel = document.getElementById('filtered-total-label');
+        const filteredTotalAmount = document.getElementById('filtered-total-amount');
+
+        if (selectedCategory === 'none') {
+            tableWrapper.style.display = 'none';
+            noImportsMessage.textContent = 'يرجى اختيار صنف لعرض الواردات.';
+            noImportsMessage.style.display = 'block';
+            filteredTotalCard.style.display = 'none';
+            rows.forEach(row => { row.style.display = 'none'; });
+            return;
+        }
+
+        let visibleCount = 0;
+        let filteredTotal = 0;
+
+        rows.forEach(row => {
+            const importData = JSON.parse(row.dataset.import);
+            const itemName = importData.name;
+            let matches = false;
+
+            if (selectedCategory === 'all') {
+                matches = true;
+            } else if (selectedCategory === 'اخري') {
+                if (!predefinedCategories.includes(itemName)) {
+                    matches = true;
+                }
+            } else {
+                if (itemName === selectedCategory) {
+                    matches = true;
+                }
+            }
+
+            if (matches) {
+                row.style.display = ''; 
+                visibleCount++;
+                filteredTotal += importData.price || 0;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        if (selectedCategory === 'all' || visibleCount === 0) {
+            filteredTotalCard.style.display = 'none';
+        } else {
+            filteredTotalLabel.textContent = `إجمالي ${selectedCategory === 'اخري' ? 'الأصناف الأخرى' : selectedCategory}`;
+            filteredTotalAmount.textContent = filteredTotal.toLocaleString('ar-EG', { style: 'currency', currency: 'EGP' });
+            filteredTotalCard.style.display = 'block';
+        }
+
+        if (visibleCount === 0 && allImportsData.length > 0) {
+            tableWrapper.style.display = 'none';
+            noImportsMessage.textContent = 'لا توجد واردات تطابق هذا الفلتر.';
+            noImportsMessage.style.display = 'block';
+        } else if (allImportsData.length === 0) {
+             tableWrapper.style.display = 'none';
+            noImportsMessage.textContent = 'لم يتم إضافة أي واردات لهذا المشروع بعد.';
+            noImportsMessage.style.display = 'block';
+        } else {
+            tableWrapper.style.display = '';
+            noImportsMessage.style.display = 'none';
+        }
     }
 
     function listenForImports() {
         const importsQuery = query(collection(db, 'projects', projectId, 'imports'), orderBy('date', 'desc'));
-        const noImportsMessage = document.getElementById('no-imports-message');
-        const tableWrapper = document.querySelector('.table-wrapper');
-
+        
         onSnapshot(importsQuery, (snapshot) => {
+            allImportsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            calculateAndDisplayGrandTotal();
+
             if (snapshot.empty) {
                 importsList.innerHTML = '';
-                noImportsMessage.textContent = 'لم يتم إضافة أي واردات لهذا المشروع بعد.';
-                tableWrapper.style.display = 'none';
-                noImportsMessage.style.display = 'block';
             } else {
-                tableWrapper.style.display = '';
-                noImportsMessage.style.display = 'none';
-                importsList.innerHTML = snapshot.docs.map(doc => renderImportRow(doc.id, doc.data())).join('');
+                importsList.innerHTML = allImportsData.map(data => renderImportRow(data.id, data)).join('');
             }
+            
+            applyFilter();
         });
     }
 
@@ -420,7 +535,7 @@ try {
 .error-card h2 { color: var(--danger-color); }
 
 /* Header */
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
+.page-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
 .page-header h1 { font-size: 2.2rem; color: var(--dark-text); font-weight: 900; }
 .page-subtitle { color: var(--light-text); margin-top: 0.25rem; }
 .header-actions { display: flex; gap: 1rem; }
@@ -437,7 +552,23 @@ try {
 
 /* Imports List */
 .imports-list-container { background-color: var(--white); padding: 2rem; border-radius: 12px; box-shadow: var(--shadow); }
-.imports-list-container h2 { font-size: 1.8rem; margin-bottom: 1.5rem; font-weight: 800; color: var(--primary-color); border-bottom: 2px solid var(--border-color); padding-bottom: 1rem; }
+
+/* List Header & Summaries */
+.list-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 2rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 1.5rem;}
+.title-and-summaries { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5rem; }
+.title-and-summaries h2 { font-size: 1.8rem; font-weight: 800; color: var(--primary-color); margin: 0; }
+
+.summaries-inline { display: flex; flex-wrap: wrap; gap: 1rem; }
+.summary-card-inline { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: #f9fafb; text-align: center; }
+.summary-card-inline h5 { font-size: 0.85rem; color: var(--light-text); font-weight: 700; margin: 0 0 0.25rem; }
+.summary-card-inline p { font-size: 1.25rem; font-weight: 700; margin: 0; }
+#grand-total-card p { color: var(--success-color); }
+#filtered-total-card p { color: var(--primary-color); }
+
+/* Filter Styles */
+.filter-container { display: flex; align-items: center; gap: 0.75rem; }
+.filter-container label { font-weight: 700; color: var(--light-text); font-size: 0.95rem; }
+.filter-container select { padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--border-color); min-width: 200px; background-color: #fff; }
 
 /* Table Styles */
 .table-wrapper { overflow-x: auto; }
@@ -498,8 +629,14 @@ try {
 .form-group input[readonly] { background-color: #e9ecef; cursor: not-allowed; }
 
 /* Responsive */
+@media (max-width: 992px) {
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+}
 @media (max-width: 768px) {
     .page-header { flex-direction: column; align-items: stretch; gap: 1.5rem; }
+    .list-header { flex-direction: column; align-items: stretch; gap: 1rem; }
     .form-grid { grid-template-columns: 1fr; }
     #imports-table thead { display: none; }
     #imports-table tr, #imports-table td { display: block; width: 100%; }
