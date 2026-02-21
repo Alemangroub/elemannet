@@ -6,9 +6,9 @@ import vercel from "@astrojs/vercel";
 // https://astro.build/config
 export default defineConfig({
   output: 'server', 
+  // Force redeploy: 1
   adapter: vercel({
-    // Enable Astro's built-in CSRF protection
-    checkOrigin: true
+    checkOrigin: true // Re-enabled for security
   }), 
   integrations: [tailwind(), react()]
 });

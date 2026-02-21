@@ -278,6 +278,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 </Layout>
 
 <script>
+    console.log("Deployment version: 2"); // Diagnostic flag
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, deleteDoc } from "firebase/firestore";
@@ -869,7 +870,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
     .form-control-inline { width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.95rem; }
 
     .actions-cell .action-buttons-view, .actions-cell .action-buttons-edit { display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
-    .btn-action { padding: 0.4rem 0.8rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer; margin: 2px 0;}
+    .btn-action { padding: 0.4rem 0.8rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; transition: transform 0.2s; border: none; color: var(--white-color); cursor: pointer; margin: 2px 0; }
     .btn-action:hover { transform: translateY(-2px); }
     .btn-edit { background-color: var(--warning-color); color: #333;}
     .btn-delete { background-color: var(--danger-color);}
