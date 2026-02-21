@@ -39,3 +39,4 @@ dist/
 
 # Environment variables
 # .env
+.vercel

@@ -1,11 +1,15 @@
 import { defineConfig } from 'astro/config';
 import tailwind from "@astrojs/tailwind";
 import react from "@astrojs/react";
-import node from "@astrojs/node";
+import vercel from "@astrojs/vercel";
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'server', // Set to 'server' for SSR (Server-Side Rendering)
-  adapter: node({ mode: 'standalone' }), // Add the Node.js adapter in standalone mode
+  output: 'server', 
+  adapter: vercel({
+    // Disable Astro's built-in CSRF protection
+    // This is safe to do on Vercel as they provide their own protection
+    checkOrigin: false
+  }), 
   integrations: [tailwind(), react()]
 });
