@@ -5,10 +5,10 @@ import vercel from "@astrojs/vercel";
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://www.elemancompany.net',
   output: 'server', 
-  // Force redeploy: 1
   adapter: vercel({
-    checkOrigin: true // Re-enabled for security
+    checkOrigin: true
   }), 
   integrations: [tailwind(), react()]
 });

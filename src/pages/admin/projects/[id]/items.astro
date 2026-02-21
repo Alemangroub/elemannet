@@ -278,7 +278,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 </Layout>
 
 <script>
-    console.log("Deployment version: 2"); // Diagnostic flag
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
     import { doc, getDoc, deleteDoc } from "firebase/firestore";
