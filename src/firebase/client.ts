@@ -1,7 +1,7 @@
 import { initializeApp, getApp, type FirebaseOptions } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage"; // Import getStorage
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: import.meta.env.PUBLIC_FIREBASE_API_KEY,
@@ -11,6 +11,10 @@ const firebaseConfig: FirebaseOptions = {
   messagingSenderId: import.meta.env.PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.PUBLIC_FIREBASE_APP_ID,
 };
+
+// --- DIAGNOSTIC CODE START ---
+console.log("Firebase config being used by the application:", firebaseConfig);
+// --- DIAGNOSTIC CODE END ---
 
 // Initialize Firebase
 let app;
@@ -22,6 +26,6 @@ try {
 
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app); // Initialize storage
+const storage = getStorage(app);
 
-export { auth, db, storage, app, firebaseConfig }; // Export storage
+export { auth, db, storage, app, firebaseConfig };
