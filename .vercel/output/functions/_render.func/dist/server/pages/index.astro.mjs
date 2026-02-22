@@ -1,11 +1,11 @@
 /* empty css                                      */
-import { f as createComponent, m as maybeRenderHead, r as renderTemplate, e as createAstro, p as defineScriptVars, h as addAttribute, n as renderScript, u as unescapeHTML, k as renderComponent } from '../chunks/astro/server_XmWuuq3N.mjs';
+import { f as createComponent, m as maybeRenderHead, r as renderTemplate, e as createAstro, am as defineScriptVars, h as addAttribute, n as renderScript, u as unescapeHTML, k as renderComponent } from '../chunks/astro/server_Cggvz1LX.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_BXNuZTdR.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_BDfkJrDu.mjs';
+import { $ as $$Layout } from '../chunks/Layout_Tcj3x3ri.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_weAK0v4g.mjs';
 import 'clsx';
 /* empty css                                 */
-import { $ as $$TopBar } from '../chunks/TopBar_BdeVco5R.mjs';
+import { $ as $$TopBar } from '../chunks/TopBar_BghstFJ4.mjs';
 import { s as services, a as achievements } from '../chunks/achievements_Z_B-657g.mjs';
 import { i as info } from '../chunks/info_z3mEWYcI.mjs';
 export { renderers } from '../renderers.mjs';

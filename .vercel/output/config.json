@@ -76,6 +76,10 @@
 			"dest": "_render"
 		},
 		{
+			"src": "^/admin/projects/([^/]+?)/remains-reports/?$",
+			"dest": "_render"
+		},
+		{
 			"src": "^/admin/projects/([^/]+?)/suppliers/?$",
 			"dest": "_render"
 		},
@@ -101,6 +105,14 @@
 		},
 		{
 			"src": "^/api/auth/session/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/delete-user/?$",
+			"dest": "_render"
+		},
+		{
+			"src": "^/api/project-details/([^/]+?)/?$",
 			"dest": "_render"
 		},
 		{

@@ -1,4 +1,4 @@
-import { d as db } from '../../chunks/admin_CBgMA4DX.mjs';
+import { d as db } from '../../chunks/admin_B4VhlVdo.mjs';
 import { Timestamp } from 'firebase-admin/firestore';
 export { renderers } from '../../renderers.mjs';
 

@@ -1,4 +1,4 @@
-import { d as db } from '../../chunks/admin_CBgMA4DX.mjs';
+import { d as db } from '../../chunks/admin_B4VhlVdo.mjs';
 import admin from 'firebase-admin';
 export { renderers } from '../../renderers.mjs';
 

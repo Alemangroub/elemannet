@@ -1,8 +1,8 @@
 /* empty css                                      */
-import { e as createAstro, f as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead, o as Fragment, h as addAttribute } from '../chunks/astro/server_XmWuuq3N.mjs';
+import { e as createAstro, f as createComponent, k as renderComponent, r as renderTemplate, m as maybeRenderHead, o as Fragment, h as addAttribute } from '../chunks/astro/server_Cggvz1LX.mjs';
 import 'piccolore';
-import { $ as $$Layout } from '../chunks/Layout_BXNuZTdR.mjs';
-import { $ as $$Header, a as $$Footer } from '../chunks/Footer_BDfkJrDu.mjs';
+import { $ as $$Layout } from '../chunks/Layout_Tcj3x3ri.mjs';
+import { $ as $$Header, a as $$Footer } from '../chunks/Footer_weAK0v4g.mjs';
 import { s as services, a as achievements } from '../chunks/achievements_Z_B-657g.mjs';
 import { i as info } from '../chunks/info_z3mEWYcI.mjs';
 /* empty css                                  */
