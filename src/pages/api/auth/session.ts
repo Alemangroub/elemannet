@@ -1,30 +1,31 @@
-
 import type { APIRoute } from 'astro';
-import { auth } from '../../../firebase/admin'; // Corrected import
+import { getAuth } from 'firebase-admin/auth';
+import { app } from '../../../../firebase/server';
 
-export const POST: APIRoute = async ({ request, cookies }) => {
-  const { idToken } = await request.json();
+export const GET: APIRoute = async ({ request, cookies }) => {
+  const auth = getAuth(app);
 
-  // Check if auth was initialized correctly
-  if (!auth) {
-    return new Response(JSON.stringify({ error: "Firebase auth not initialized" }), { status: 500 });
+  // --- DIAGNOSTIC CODE START ---
+  console.log("--- Vercel Server-Side Environment Variables ---");
+  console.log("FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID ? "Loaded" : "MISSING");
+  console.log("FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL ? "Loaded" : "MISSING");
+  // Check if the private key exists and has a reasonable length
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+  console.log("FIREBASE_PRIVATE_KEY:", privateKey && privateKey.length > 100 ? "Loaded" : "MISSING or TOO SHORT");
+  console.log("--------------------------------------------");
+  // --- DIAGNOSTIC CODE END ---
+
+  const sessionCookie = cookies.get('session')?.value;
+  if (!sessionCookie) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
   try {
-    // 7 days
-    const expiresIn = 60 * 60 * 24 * 7 * 1000;
-    // Use the correctly imported auth object
-    const sessionCookie = await auth.createSessionCookie(idToken, { expiresIn });
-
-    cookies.set("session", sessionCookie, {
-      path: "/",
-      httpOnly: true,
-      secure: true,
-      maxAge: expiresIn,
-    });
-
-    return new Response(JSON.stringify({ success: true }), { status: 200 });
+    const decodedCookie = await auth.verifySessionCookie(sessionCookie, true);
+    const user = await auth.getUser(decodedCookie.uid);
+    return new Response(JSON.stringify(user), { status: 200 });
   } catch (error) {
-    return new Response(JSON.stringify({ error: "Failed to create session cookie" }), { status: 500 });
+    console.error('Error verifying session cookie:', error);
+    return new Response('Unauthorized', { status: 401 });
   }
 };
