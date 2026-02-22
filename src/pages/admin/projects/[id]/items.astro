@@ -6,52 +6,12 @@ import { Timestamp } from "firebase-admin/firestore";
 
 export const prerender = false;
 
-const csrfToken = Astro.locals.csrfToken;
-
 const { id } = Astro.params;
 let project = null;
 let items = [];
 let error = null;
-let success = null;
 
-if (Astro.request.method === 'POST') {
-    try {
-        const formData = await Astro.request.formData();
-        const name = formData.get('name');
-        const personName = formData.get('personName');
-        const quantity = parseFloat(formData.get('quantity'));
-        const unitPrice = parseFloat(formData.get('unitPrice'));
-        const itemDate = formData.get('itemDate');
-        const notes = formData.get('notes');
-
-        if (!name || !personName || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
-            throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
-        }
-
-        const totalPrice = quantity * unitPrice;
-        const createdAt = Timestamp.fromDate(new Date(itemDate));
-
-        await db.collection('projects').doc(id).collection('items').add({
-            name,
-            personName,
-            quantity,
-            unitPrice,
-            totalPrice,
-            notes,
-            createdAt
-        });
-
-        return Astro.redirect(`/admin/projects/${id}/items?success=true`);
-
-    } catch (err) {
-        console.error("Error adding item:", err);
-        error = err.message;
-    }
-}
-
-if (Astro.url.searchParams.get('success') === 'true') {
-    success = 'تمت إضافة البند بنجاح!';
-}
+// NOTE: Success message logic has been removed as per user request.
 
 try {
     const projectDoc = await db.collection('projects').doc(id).get();
@@ -88,7 +48,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
         <AdminLogin />
     </div>
 
-    <main id="page-content" style="display: none;">
+    <main id="page-content" style="display: none;" data-project-id={id}>
         <div class="container">
             <header class="page-header">
                 <div>
@@ -102,13 +62,11 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 </div>
             </header>
 
-            {success && <p class="success-message">{success}</p>}
-            {error && <p class="error-message">{error}</p>}
+            {error && <p class="error-message" id="error-message-box">{error}</p>}
 
-            <div id="add-item-form" style="display: none;" class="form-container">
+            <div id="add-item-form-container" style="display: none;" class="form-container">
                  <h2>نموذج إضافة بند جديد</h2>
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value={csrfToken} />
+                <form id="add-item-form">
                     <input type="hidden" id="name" name="name" />
                     <div class="form-grid">
                          <div class="form-group">
@@ -280,7 +238,7 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 <script>
     import { auth, db } from '../../../../firebase/client';
     import { onAuthStateChanged, signOut } from "firebase/auth";
-    import { doc, getDoc, deleteDoc } from "firebase/firestore";
+    import { doc, getDoc, deleteDoc, collection, addDoc, Timestamp } from "firebase/firestore";
 
     document.addEventListener('DOMContentLoaded', () => {
         const authLoadingMessage = document.getElementById('auth-loading-message');
@@ -318,6 +276,57 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                 logoutButton.addEventListener('click', async () => {
                     await signOut(auth);
                     window.location.href = '/admin';
+                });
+            }
+
+            // Client-side form submission
+            const addItemForm = document.getElementById('add-item-form');
+            if (addItemForm) {
+                addItemForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const submitButton = addItemForm.querySelector('button[type="submit"]');
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'جارٍ الحفظ...';
+
+                    try {
+                        const projectId = document.getElementById('page-content').dataset.projectId;
+                        if (!projectId) throw new Error("Project ID is not available.");
+
+                        const name = document.getElementById('name').value;
+                        const personName = document.getElementById('personName').value;
+                        const quantity = parseFloat(document.getElementById('quantity').value);
+                        const unitPrice = parseFloat(document.getElementById('unitPrice').value);
+                        const itemDate = document.getElementById('itemDate').value;
+                        const notes = document.getElementById('notes').value;
+
+                        if (!name || !personName || isNaN(quantity) || isNaN(unitPrice) || !itemDate) {
+                            throw new Error('يرجى ملء جميع الحقول المطلوبة والتأكد من صحة البيانات.');
+                        }
+
+                        const itemsColRef = collection(db, 'projects', projectId, 'items');
+                        await addDoc(itemsColRef, {
+                            name,
+                            personName,
+                            quantity,
+                            unitPrice,
+                            totalPrice: quantity * unitPrice,
+                            notes,
+                            createdAt: Timestamp.fromDate(new Date(itemDate))
+                        });
+                        
+                        // Reload the page to show the new item without a success message
+                        window.location.reload();
+
+                    } catch (err) {
+                        console.error("Error adding item:", err);
+                        const errorBox = document.getElementById('error-message-box');
+                        if(errorBox) {
+                            errorBox.textContent = err.message;
+                            errorBox.style.display = 'block';
+                        }
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'حفظ البند';
+                    }
                 });
             }
 
@@ -649,18 +658,18 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
 
             const toggleBtn = document.getElementById('toggle-form-btn');
             const cancelBtn = document.getElementById('cancel-btn');
-            const addItemForm = document.getElementById('add-item-form');
+            const addItemFormContainer = document.getElementById('add-item-form-container');
 
-            if (toggleBtn && addItemForm) {
+            if (toggleBtn && addItemFormContainer) {
                 toggleBtn.addEventListener('click', () => {
-                    const isHidden = addItemForm.style.display === 'none';
-                    addItemForm.style.display = isHidden ? 'block' : 'none';
+                    const isHidden = addItemFormContainer.style.display === 'none';
+                    addItemFormContainer.style.display = isHidden ? 'block' : 'none';
                     toggleBtn.textContent = isHidden ? '- إلغاء الإضافة' : '+ إضافة بند جديد';
                 });
             }
-            if (cancelBtn && addItemForm && toggleBtn) {
+            if (cancelBtn && addItemFormContainer && toggleBtn) {
                 cancelBtn.addEventListener('click', () => {
-                    addItemForm.style.display = 'none';
+                    addItemFormContainer.style.display = 'none';
                     toggleBtn.textContent = '+ إضافة بند جديد';
                 });
             }
@@ -779,20 +788,6 @@ const uniqueItemNames = [...new Set(items.map(item => item.name))];
                     });
                 }
             }
-            
-            const successMessage = document.querySelector('.success-message');
-            if (successMessage) {
-                setTimeout(() => {
-                    successMessage.style.opacity = '0';
-                    setTimeout(() => {
-                        successMessage.remove();
-                        const url = new URL(window.location);
-                        url.searchParams.delete('success');
-                        history.replaceState(null, '', url.toString());
-                    }, 500);
-                }, 5000);
-            }
-
         }
     });
 </script>

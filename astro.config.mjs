@@ -8,7 +8,8 @@ export default defineConfig({
   site: 'https://www.elemancompany.net',
   output: 'server', 
   adapter: vercel({
-    checkOrigin: true
+    // Disable origin checking in development
+    checkOrigin: process.env.NODE_ENV === 'production'
   }), 
   integrations: [tailwind(), react()]
 });

@@ -32,47 +32,27 @@ This application is a web-based project management dashboard named "Elemannet". 
     -   Provides a central hub for a single project, displaying its main information.
     -   Features navigation to "Daily Reports", "Expense Reports", "Project Installments", and "Items".
 
--   **Project Installment Management:**
-    -   **Installments List (`/admin/project-installments`):** Displays a list of all financial installments associated with a specific project, showing amount, due date, and status (paid/unpaid).
-    -   **Add Installment (`/admin/add-installment`):**
-        -   A dedicated page with a form to add a new installment to a project.
-        -   The form includes fields for Amount, Due Date, and Status.
-        -   It links the new installment directly to the project via its ID.
-        -   Redirects back to the project's installment list upon successful submission.
+-   **Project Items (البنود) Management (`/admin/projects/[id]/items`):**
+    -   A comprehensive page for managing project items (expenses, materials, etc.).
+    -   **Client-Side Form Submission:** Item creation is handled entirely on the client-side using JavaScript to prevent server-side CSRF (Cross-Site Request Forgery) errors. The form data is sent directly to Firebase Firestore from the browser.
+    -   **Seamless Page Update:** Upon successful submission, the page automatically reloads (`window.location.reload()`) to instantly display the new item in the list without an intermediary success message, providing a smooth user experience.
+    -   **Full CRUD (Create, Read, Update, Delete):** Allows admins to add, view, edit (inline), and delete items with confirmation modals for safety.
+    -   **Data Filtering & Summaries:** Features dynamic filtering by main and sub-category, with real-time updates to filtered totals and the grand total.
+    -   **Data Export:** Provides options to print, export to PDF, or export to Excel for individual items.
 
--   **Daily & Expense Reports (`/admin/projects/[id]/...`):**
-    -   Admins can view all daily work and expense reports submitted for a project.
-    -   Features include inline editing and safe deletion (with a confirmation modal) for all reports.
-
--   **Supervisor Submission Form (`/`):**
-    -   A comprehensive form for supervisors to submit "Daily Reports" or an "Expense Reports" for their assigned projects, including image uploads.
+-   **Project Suppliers (الواردات) Management (`/admin/projects/[id]/suppliers`):**
+    -   A page to track project supplies and purchases.
+    -   **Client-Side Data Handling:** All operations (add, edit, delete, view) are handled on the client-side using JavaScript and direct interaction with the Firebase Firestore database, ensuring a fast and responsive user experience.
 
 #### 2.2.2. Customer Contract & Standalone Installment Management
 
 -   **Installments Dashboard (`/admin/installments`):**
     -   Provides a summary of total contracts, total installment amounts, and total paid amounts.
     -   Lists all customer contracts with key details, linking to a detailed view for each.
-    -   Includes a link to the notifications page and an action to add a new contract.
-
--   **Contract & Installment Creation (`/admin/add-installment`):**
-    -   A guided form to create a new customer contract.
-    -   Automatically generates an installment schedule based on the total amount and number of installments.
-    -   Allows customization of individual installment amounts and due dates before saving.
 
 -   **Contract Details Page (`/admin/contract-details`):**
-    -   Displays a complete summary of a single contract.
-    -   Lists all associated installments with their status (paid/unpaid), amount, and due date.
-    -   Allows admins to toggle the status of each installment (with confirmation).
-    -   Provides options to edit the entire contract, delete it, or print it.
-    -   Includes a link to edit each individual installment.
-    -   **Responsive Design:** The installments table transforms into a card-based view on mobile devices for better readability.
-
--   **Installment Editing (`/admin/edit-installment`):**
-    -   A dedicated page to modify the amount, due date, or status of a single installment.
-
--   **Contract Editing (`/admin/edit-contract`):**
-    -   Allows modification of core contract details.
-    -   Recalculates the schedule for *unpaid* installments if the total amount or number of installments is changed.
+    -   Displays a complete summary of a single contract, including all associated installments with their status.
+    -   Allows admins to toggle the status of each installment (with confirmation) and provides options to edit, delete, or print the contract.
 
 -   **Installment Notifications (`/admin/notifications`):**
     -   A dedicated page that automatically categorizes and displays unpaid installments that are either overdue or due within the next 7 days.
@@ -83,34 +63,26 @@ This application is a web-based project management dashboard named "Elemannet". 
 -   **Secure Admin Login (`/admin`):** The generic `/admin` route serves as the primary login portal for administrators.
 -   **Logout Functionality:** A "Logout" button is available on all admin pages for secure session termination.
 
-## 3. Previous Task: Refactor Cost Pages into a Single Dynamic Route
+## 3. Previous Task: Fix "Items" Page Form Submission Error
+
+### Problem Description
+
+The initial implementation of the "Items" page used a standard Astro server-side form (`<form method="POST">`). During deployment, this caused a "Forbidden" error when submitting the form, indicating a Cross-Site Request Forgery (CSRF) protection issue.
+
+### Plan & Steps for the Fix
+
+The solution was to refactor the page to handle form submissions on the client-side, mirroring the successful implementation of the "Suppliers" page.
+
+1.  **[Analyze Working Page]** Compared the failing `items.astro` page with the working `suppliers.astro` page.
+2.  **[Refactor Form]** Removed the `method="POST"` attribute from the `<form>` tag in `items.astro`.
+3.  **[Remove Server-Side Logic]** Deleted the server-side `POST` handling logic from the frontmatter.
+4.  **[Implement Client-Side Logic]** Added a JavaScript event listener to the `<script>` section. This script intercepts the form submission, gathers the data, and sends it directly to Firestore using the client-side SDK.
+
+## 4. Current Task: Refine User Experience on "Items" Page
 
 ### Plan & Steps for the requested change:
 
-1.  **[Identify Problem]** The `src/pages/admin/projects/[id]/costs/` directory contained numerous individual, static `.astro` files for each cost type (e.g., `concrete-wages.astro`, `electrical-wages.astro`). This structure was highly inefficient, difficult to maintain, and not scalable for adding new cost categories.
-2.  **[Delete Redundant Files]** Systematically deleted all the individual static cost pages from the `costs` directory to clean up the project structure.
-3.  **[Create Dynamic Route]** Created a single dynamic Astro page: `src/pages/admin/projects/[id]/costs/[costType].astro`.
-4.  **[Implement Dynamic Content]** This new page utilizes the `costType` parameter from the URL to dynamically fetch and display the relevant cost information. This approach simplifies the codebase, significantly improves maintainability, and allows for the easy addition of new cost types in the future without needing to create new files.
-5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the refactoring process and the new dynamic route structure.
-
-## 4. Current Task: Add "Items" (البنود) Page to Projects
-
-### Plan & Steps for the requested change:
-
-1.  **[Add Navigation Link]** Modified the Project Details page (`src/pages/admin/projects/[id].astro`) to include a new navigation card that links to the "Items" page for that specific project.
-2.  **[Style the Link]** Updated the CSS in `[id].astro` to handle a three-column layout for the navigation cards, ensuring the new "Items" card displays correctly alongside the existing "Expense Reports" and "Daily Reports" cards. Added a new CSS variable (`--items-color`) for styling.
-3.  **[Create New Page]** Created a new, placeholder page at `src/pages/admin/projects/[id]/items.astro`.
-4.  **[Implement Page Structure]** The new `items.astro` page includes the standard layout, authentication checks, a title, and a link to return to the main project details page. It currently contains a placeholder message indicating that the feature will be implemented soon.
-5.  **[Update Blueprint]** Updated this `blueprint.md` file to document the addition of the new page and navigation link.
-
-## 5. Current Task: Add Print and Export Buttons
-
-### Plan & Steps for the requested change:
-
-1.  **[Add Buttons to UI]** Added "Print", "Export PDF", and "Export Excel" buttons to the header of the `src/pages/admin/contract-details.astro` page.
-2.  **[Install Dependencies]** Installed the `jspdf`, `jspdf-autotable`, and `xlsx` libraries via npm to handle PDF and Excel exporting.
-3.  **[Implement Functionality]**
-    -   Added a `click` event listener to the "Print" button that triggers the browser's native `window.print()` function.
-    -   Created an `exportPDF` function that uses `jspdf` and `jspdf-autotable` to generate a PDF of the installments table.
-    -   Created an `exportExcel` function that uses `xlsx` to generate an Excel file from the installments table.
-4.  **[Update Blueprint]** Updated this `blueprint.md` file to document the new features and the steps taken to implement them.
+1.  **[Identify Issue]** After successfully adding a new item, a success message was displayed via a URL query parameter (`?success=true`). The user requested to remove this message for a smoother experience.
+2.  **[Remove Success Message Logic]** Deleted the code responsible for displaying the success message from the HTML template and the frontmatter of `src/pages/admin/projects/[id]/items.astro`.
+3.  **[Change Page Update Method]** Modified the client-side form submission script. Instead of redirecting to a URL with a query parameter, the script now calls `window.location.reload()` upon successful submission. This action refreshes the page, displaying the newly added item in the list immediately and seamlessly.
+4.  **[Update Blueprint]** Updated this `blueprint.md` file to document this user experience refinement.
